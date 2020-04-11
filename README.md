@@ -1,6 +1,6 @@
 # PTSKIM
 
-A frequency based transit assignment model, based on the article:
+A frequency based transit [skimming](https://tfresource.org/topics/Skim_Matrix.html) and [assignment](https://tfresource.org/topics/Network_assignment.html) model, based on the article:
 
 Gentile, G., Nguyen, S., Pallottino, S. (2005). Route choice on transit networks with online information
 at stops. Transportation Science 39 (3), 289–297
