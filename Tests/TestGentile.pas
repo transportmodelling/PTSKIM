@@ -133,16 +133,16 @@ begin
   var TotalWait := 0.0;
   for var Draw := 1 to NDraws do
   begin
-    var Departure1 := random(8000000);
-    var Departure2 := random(10000000);
-    if Departure1+2000000 < Departure2 then
+    var Departure1 := 8*random;
+    var Departure2 := 10*random;
+    if Departure1+2 < Departure2 then
     begin
       Inc(Line1Boardings);
-      TotalWait := TotalWait + Departure1/1E6;
+      TotalWait := TotalWait + Departure1;
     end else
     begin
       Inc(Line2Boardings);
-      TotalWait := TotalWait + Departure2/1E6;
+      TotalWait := TotalWait + Departure2;
     end;
   end;
   Assert.AreEqual(TotalWait/NDraws,WaitTime,5E-6);
