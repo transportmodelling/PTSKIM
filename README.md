@@ -10,4 +10,4 @@ for the case of deterministic headways.
 PTSKIM is a console application that reads its settings from a [control file](https://github.com/transportmodelling/PTSKIM/wiki/Control-file) that is passed as a command line argument.
 
 # Dependencies
-Before you can compile this program, you will need to clone the https://github.com/transportmodelling/Utils repository, and then add it to your Delphi Library path.
+Before you can compile this program, you will need to clone the https://github.com/transportmodelling/Utils and https://github.com/transportmodelling/matio repositories, and then add it to your Delphi Library path.
