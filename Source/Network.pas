@@ -70,8 +70,7 @@ Type
     FNodes: array of TNode;
     Function GetNodes(Node: Integer): TNode; inline;
   public
-    Constructor Create(const TimeOfDay: Integer;
-                       const TransitNetwork: TTransitNetwork;
+    Constructor Create(const TransitNetwork: TTransitNetwork;
                        const NonTransitNetwork: TNonTransitNetwork);
     Procedure Initialize(const [ref] UserClass: TUserClass);
     Procedure PushVolumes;
@@ -86,11 +85,14 @@ implementation
 
 Procedure TTransitConnection.SetUserClassImpedance(const [ref] UserClass: TUserClass);
 begin
-  if FCost = 0.0 then
-    FImpedance := UserClass.BoardingPenalty + Line.BoardingPenalties[UserClass.UserClass] + FTime
+  if Line.SegmentOverload(FFromStop) = 0.0 then
+    if FCost = 0.0 then
+      FImpedance := UserClass.BoardingPenalty + Line.BoardingPenalties[UserClass.UserClass] + FTime
+    else
+      FImpedance := UserClass.BoardingPenalty + Line.BoardingPenalties[UserClass.UserClass] +
+                      FTime + FCost/UserClass.ValueOfTime
   else
-    FImpedance := UserClass.BoardingPenalty + Line.BoardingPenalties[UserClass.UserClass] +
-                    FTime + FCost/UserClass.ValueOfTime;
+    FImpedance := Infinity;
 end;
 
 Procedure TTransitConnection.PushVolumes;
@@ -166,28 +168,32 @@ Procedure TNode.Initialize(const [ref] UserClass: TUserClass;
                            const LineChoiceOptions: TLineChoiceOptionsList;
                            const LineChoiceModel: TLineChoiceModel);
 begin
-  // Calculate route section impedances
-  for var RouteSection in FRouteSections do
+  if Length(FRouteSections) > 0 then
   begin
-    LineChoiceOptions.Clear;
-    for var Connection in RouteSection.FConnections do
+    // Calculate route section impedances
+    for var RouteSection in FRouteSections do
     begin
-      Connection.SetUserClassImpedance(UserClass);
-      if Connection.Line = nil then
-        LineChoiceOptions.AddOption(0.0,Connection.Impedance)
-      else
-        LineChoiceOptions.AddOption(Connection.Headway,Connection.Impedance);
+      LineChoiceOptions.Clear;
+      for var Connection in RouteSection.FConnections do
+      begin
+        Connection.SetUserClassImpedance(UserClass);
+        if Connection.Impedance < Infinity then
+        if Connection.Line = nil then
+          LineChoiceOptions.AddOption(0.0,Connection.Impedance)
+        else
+          LineChoiceOptions.AddOption(Connection.Headway,Connection.Impedance);
+      end;
+      LineChoiceModel.LineChoice(LineChoiceOptions,RouteSection.FImpedance);
     end;
-    LineChoiceModel.LineChoice(LineChoiceOptions,RouteSection.FImpedance);
+    // Sort route sections
+    TArray.Sort<TRouteSection>(FRouteSections,TComparer<TRouteSection>.Construct(
+           Function(const Left,Right: TRouteSection): Integer
+           begin
+             if Left.Impedance < Right.Impedance then Result := -1 else
+             if Left.Impedance > Right.Impedance then Result := +1 else
+             Result := 0;
+           end ));
   end;
-  // Sort route sections
-  TArray.Sort<TRouteSection>(FRouteSections,TComparer<TRouteSection>.Construct(
-         Function(const Left,Right: TRouteSection): Integer
-         begin
-           if Left.Impedance < Right.Impedance then Result := -1 else
-           if Left.Impedance > Right.Impedance then Result := +1 else
-           Result := 0;
-         end ));
 end;
 
 Destructor TNode.Destroy;
@@ -198,8 +204,7 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Constructor TNetwork.Create(const TimeOfDay: Integer;
-                            const TransitNetwork: TTransitNetwork;
+Constructor TNetwork.Create(const TransitNetwork: TTransitNetwork;
                             const NonTransitNetwork: TNonTransitNetwork);
 begin
   inherited Create;

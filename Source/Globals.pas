@@ -21,6 +21,7 @@ Var
   NZones: Integer;
   NNodes: Integer;
   NUserClasses: Integer;
+  TimeOfDay: Integer;
 
 ////////////////////////////////////////////////////////////////////////////////
 implementation

@@ -16,15 +16,17 @@ uses
   System.SysUtils,
   System.IOUtils,
   System.Math,
+  ArrayHlp,
   Parse,
   PropSet,
   matio,
   matio.Formats,
   matio.Text,
-  Polynom in 'Polynom.pas',
-  Spline in 'Spline.pas',
-  PFL in 'PFL.pas',
-  Log in 'Log.pas',
+  FloatHlp,
+  Polynom,
+  Spline,
+  PFL,
+  Log,
   Globals in 'Globals.pas',
   Connection in 'Connection.pas',
   Network in 'Network.pas',
@@ -53,13 +55,13 @@ Var
   PathBuilders: array of TPathBuilder;
   DestinationsLoop: TParallelFor;
   SkimVar: String;
-  NThreads,NSkim: Integer;
+  NThreads,NSkim,NIter: Integer;
   SkimVariables: TArray<String>;
   SkimVars: array of TSkimVar;
   Volumes: array of TFloat32MatrixRow;
-  SkimRows: TFloat32MatrixRows;
-  SkimData: array of TFloat32MatrixRows;
+  SkimData: array {user class} of array {destination} of TSkimData;
   VolumesReader: TMatrixReader;
+  SkimRows: array of TFloat64MatrixRow;
   SkimWriter: TMatrixWriter;
 begin
   LogFile := nil;
@@ -83,10 +85,10 @@ begin
       NZones := ControlFile.ToInt('NZONES',0);
       NNodes := ControlFile.ToInt('NNODES');
       NUserClasses := ControlFile.ToInt('NCLASS');
+      TimeOfDay := ControlFile.ToInt('TOD')-1;
       if (NZones >= 0) and (NNodes > NZones) then
       begin
         var Offset := ControlFile.ToInt('OFFSET',0);
-        var TimeOfDay := ControlFile.ToInt('TOD')-1;
         var Load := ControlFile.ToInt('LOAD',0);
         // Set userclasses
         SetLength(UserClasses,NUserClasses);
@@ -124,6 +126,16 @@ begin
           end;
         end;
         var NSkimVar := Length(SkimVars);
+        // Set skim range
+        if NSkimVar > 0 then
+        begin
+          SetLength(SkimData,NUserClasses);
+          if NZones = 0 then
+            NSkim := NNodes // Stop to stop assignment
+          else
+            NSkim := NZones // Zone to zone assignment
+        end else
+          NSkim := 0;
         // Create non-transit network
         NonTransitNetwork := TNonTransitNetwork.Create(ControlFile.ToFloat('ACCDST',Infinity),
                                                        ControlFile.ToFloat('TRFDST',Infinity),
@@ -137,7 +149,13 @@ begin
                                        CONTROLFile.ToFloat('SPEED'));
         // Create network
         TransitNetwork := TLinesIniFile.Create(ControlFile.ToFileName('LINES',true),Offset);
-        Network := TNetwork.Create(TimeOfDay,TransitNetwork,NonTransitNetwork);
+        Network := TNetwork.Create(TransitNetwork,NonTransitNetwork);
+        // Determine number of iterations
+        if Load > 0 then
+        begin
+          NIter := Load;
+          SetLength(Volumes,NSkim,NSkim);
+        end else if NSkimVar > 0 then NIter := 1 else NIter := 0;
         // Prepare for parallel execution
         NThreads := ControlFile.ToInt('NTHREADS',0);
         if NThreads <= 0 then NThreads := TThread.ProcessorCount-NThreads;
@@ -146,21 +164,17 @@ begin
         for var Thread := 0 to NThreads-1 do PathBuilders[Thread] := TPathBuilder.Create(Network);
         DestinationsLoop := TParallelFor.Create;
         // Load & Skim network
-        if (Load > 0) or (NSkimVar > 0) then
+        var Overloaded := true;
+        for var Iter := 1 to NIter do
+        if Overloaded then
         begin
-          if NZones = 0 then
-            NSkim := NNodes  // Stop to stop assignment
-          else
-            NSkim := NZones; // Zone to zone assignment
-          if Load > 0 then SetLength(Volumes,NSkim,NSkim);
-          if NSkimVar > 0 then
-          begin
-            SetLength(SkimData,NSkim);
-            for var Node := 0 to NSkim-1 do SkimData[Node] := TFloat32MatrixRows.Create(Length(SkimVars),NSkim);
-          end;
+          var MixFactor := 1/Iter;
           for var UserClass := 0 to NUserClasses-1 do
           begin
             Network.Initialize(UserClasses[UserClass]);
+            // Allocate skim data
+            if (Iter = 1) and (NSkimVar > 0) then SetLength(SkimData[UserClass],NSkim,NSkimVar,NSkim);
+            var UserClassSkimData := SkimData[UserClass];
             // Read volumes
             if Load > 0 then
             begin
@@ -188,10 +202,39 @@ begin
                   PathBuilders[Thread].BuildPaths(Destination);
                   PathBuilders[Thread].TopoligicalSort;
                   if Load > 0 then PathBuilders[Thread].Assign(Volumes[Destination]);
-                  if NSkimVar > 0 then PathBuilders[Thread].Skim(0,NSkim-1,SkimVars,SkimData[Destination]);
+                  if NSkimVar > 0 then
+                  if Iter = 1 then
+                    PathBuilders[Thread].Skim(NSkim-1,SkimVars,UserClassSkimData[Destination])
+                  else
+                    PathBuilders[Thread].Skim(NSkim-1,MixFactor,SkimVars,UserClassSkimData[Destination]);
                end);
+            // Load network
+            if Load > 0 then
+            begin
+              // Copy volumes to network
+              for var Thread := 0 to NThreads-1 do PathBuilders[Thread].PushVolumes(UserClass);
+              TransitNetwork.StoreVolumes;
+              Network.PushVolumes;
+              var Convergence := TransitNetwork.MixStoredVolumes(MixFactor);
+              // Stop iterating if network not overloaded
+              if Iter=1 then
+              begin
+                var TotalOverload := 0.0;
+                for var Line := 0 to TransitNetwork.NLines-1 do
+                TotalOverload := TotalOverload + TransitNetwork[Line].TotalOverload;
+                if TotalOverload = 0.0 then
+                begin
+                  Overloaded := false;
+                   if LogFile <> nil then LogFile.Log('No overloaded line sections')
+                end else
+                 if LogFile <> nil then
+                 LogFile.Log('Convergence iteration ' + Iter.ToString + ': ' + FormatFloat('0.0000',Convergence))
+              end else
+                if LogFile <> nil then
+                LogFile.Log('Convergence iteration ' + Iter.ToString + ': ' + FormatFloat('0.0000',Convergence));
+            end;
             // Write skim data
-            if NSkimVar > 0 then
+            if (NSkimVar > 0) and (Iter = NIter) or (not Overloaded) then
             begin
               SkimRows := nil;
               SkimWriter := nil;
@@ -200,47 +243,49 @@ begin
                 if ControlFile.ToBool('TRNSP','0','1',false) then
                 begin
                   SetLength(SkimVariables,2*NSkimVar);
-                  for var Skim := 0 to NSkimVar-1 do SkimVariables[Skim+NSkimVar] := SkimVariables[Skim] + '_tr';
-                  SkimRows := TFloat32MatrixRows.Create(2*NSkimVar,NSkim);
+                  SetLength(SkimRows,2*NSkimVar);
+                  for var Skim := 0 to NSkimVar-1 do
+                  begin
+                    SkimVariables[Skim+NSkimVar] := SkimVariables[Skim] + '_tr';
+                    SkimRows[Skim].Length := NSkim;
+                  end;
                   SkimWriter := MatrixFormats.CreateWriter(ControlFile[SkimLabel],SkimLabel,SkimVariables,NSkim);
                   for var Origin := 0 to NSkim-1 do
                   begin
                     for var Skim := 0 to NSkimVar-1 do
-                    for var Destination := 0 to NSkim-1 do
                     begin
-                      SkimRows[Skim,Destination] := SkimData[Destination][Skim,Origin];
-                      SkimRows[Skim+NSkimVar,Destination] := SkimData[Origin][Skim,Destination];
+                      SkimRows[NSkimVar+Skim] := UserClassSkimData[Origin][Skim];
+                      for var Destination := 0 to NSkim-1 do
+                      SkimRows[Skim,Destination] := UserClassSkimData[Destination][Skim,Origin];
                     end;
                     SkimWriter.Write(SkimRows);
                   end;
                 end else
                 begin
-                  SkimRows := TFloat32MatrixRows.Create(NSkimVar,NSkim);
+                  SetLength(SkimRows,NSkimVar,NSkim);
                   SkimWriter := MatrixFormats.CreateWriter(ControlFile[SkimLabel],SkimLabel,SkimVariables,NSkim);
                   for var Origin := 0 to NSkim-1 do
                   begin
                     for var Skim := 0 to NSkimVar-1 do
-                    for var Destination := 0 to NSkim-1 do SkimRows[Skim,Destination] := SkimData[Destination][Skim,Origin];
+                    for var Destination := 0 to NSkim-1 do
+                    SkimRows[Skim,Destination] := UserClassSkimData[Destination][Skim,Origin];
                     SkimWriter.Write(SkimRows);
                   end;
                 end;
               finally
-                SkimRows.Free;
                 SkimWriter.Free;
+                Finalize(SkimData[UserClass]);
               end;
             end;
-            // Copy volumes to network
-            if Load > 0 then
-            for var Thread := 0 to NThreads-1 do PathBuilders[Thread].PushVolumes(UserClass);
           end;
-          // Save network volumes
-          if Load > 0 then
-          begin
-            var FileName := ControlFile.ToFileName('LOADS',false);
-            Network.PushVolumes;
-            TransitNetwork.SaveVolumes(FileName);
-          end;
-        end
+        end else
+          Break;
+        // Save network volumes
+        if Load > 0 then
+        begin
+          var FileName := ControlFile.ToFileName('LOADS',false);
+          TransitNetwork.SaveVolumes(FileName);
+        end;
       end else
         raise Exception.Create('Invalid value NNodes or NZones');
     except
@@ -254,7 +299,6 @@ begin
       end;
     end;
   finally
-    for var Node := low(SkimData) to high(SkimData) do SkimData[Node].Free;
     for var Thread := low(PathBuilders) to high(PathBuilders) do PathBuilders[Thread].Free;
     DestinationsLoop.Free;
     LogFile.Free;

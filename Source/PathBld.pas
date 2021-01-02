@@ -12,13 +12,15 @@ interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  SysUtils,Math,Generics.Defaults,Generics.Collections,matio,Globals,Connection,
+  SysUtils,Math,Generics.Defaults,Generics.Collections,FloatHlp,matio,Globals,Connection,
   Network,Network.Transit,LineChoi,LineChoi.Gentile;
 
 Type
   // Forward declarations
   TPathNode = Class;
   TPathConnection = Class;
+
+  TSkimData  = array {skim var} of TFloat64MatrixRow;
 
   TSkimVar = Class
   protected
@@ -115,9 +117,13 @@ Type
     Constructor Create(const Network: TNetwork);
     Procedure BuildPaths(const Destination: Integer);
     Procedure TopoligicalSort;
-    Procedure Skim(const SkimFrom,SkimTo: Integer;
+    Procedure Skim(const SkimTo: Integer;
                    const SkimVars: array of TSkimVar;
-                   const SkimData: TFloat32MatrixRows);
+                   const SkimData: TSkimData); overload;
+    Procedure Skim(const SkimTo: Integer;
+                   const MixFactor: Float64;
+                   const SkimVars: array of TSkimVar;
+                   const SkimData: TSkimData); overload;
     Procedure Assign(const Volumes: TFloat32MatrixRow);
     Procedure PushVolumes(const UserClass: Integer);
     Destructor Destroy; override;
@@ -514,38 +520,49 @@ begin
          end ));
 end;
 
-Procedure TPathBuilder.Skim(const SkimFrom,SkimTo: Integer;
+Procedure TPathBuilder.Skim(const SkimTo: Integer;
                             const SkimVars: array of TSkimVar;
-                            const SkimData: TFloat32MatrixRows);
+                            const SkimData: TSkimData);
 begin
-  if SkimTo >= SkimFrom then
+  for var SkimVar := low(SkimVars) to high(SkimVars) do
   begin
-    var Count := Length(SkimVars);
-    var Size := SkimTo-SkimFrom+1;
-    if (Count > 0) and (Size > 0) then
-    if (SkimData.Count = Count) and (SkimData.Size=Size) then
-    begin
-      // Iterate skim vars
-      for var SkimVar := low(SkimVars) to high(SkimVars) do
-      begin
-        // Skim
-        SortedNodes[0].SkimValue := 0.0;
-        for var Node := 1 to NNodes-1 do
-        if SortedNodes[Node].HyperPathImpedance < Infinity then
-          SortedNodes[Node].SkimValue := SkimVars[SkimVar].Value(SortedNodes[Node])
-        else
-          SortedNodes[Node].SkimValue := Infinity;
-        // Copy to skim data
-        for var Node := SkimFrom to SkimTo do
-        if Nodes[Node].SkimValue = Infinity then
-          SkimData[SkimVar,Node-SkimFrom] := InfProxy
-        else
-          SkimData[SkimVar,Node-SkimFrom] := Nodes[Node].SkimValue;
-      end;
-    end else
-      raise Exception.Create('Invalid skim data dimensions');
-  end else
-    raise Exception.Create('Invalid skim range');
+    // Skim
+    SortedNodes[0].SkimValue := 0.0;
+    for var Node := 1 to NNodes-1 do
+    if SortedNodes[Node].HyperPathImpedance < Infinity then
+      SortedNodes[Node].SkimValue := SkimVars[SkimVar].Value(SortedNodes[Node])
+    else
+      SortedNodes[Node].SkimValue := Infinity;
+    // Copy to skim data
+    var SkimVarData := SkimData[SkimVar];
+    for var Node := 0 to SkimTo do
+    if Nodes[Node].HyperPathImpedance < Infinity then
+      SkimVarData[Node] := Nodes[Node].SkimValue
+    else
+      SkimVarData[Node] := InfProxy;
+  end;
+end;
+
+Procedure TPathBuilder.Skim(const SkimTo: Integer;
+                            const MixFactor: Float64;
+                            const SkimVars: array of TSkimVar;
+                            const SkimData: TSkimData);
+begin
+  for var SkimVar := low(SkimVars) to high(SkimVars) do
+  begin
+    // Skim
+    SortedNodes[0].SkimValue := 0.0;
+    for var Node := 1 to NNodes-1 do
+    if SortedNodes[Node].HyperPathImpedance < Infinity then
+      SortedNodes[Node].SkimValue := SkimVars[SkimVar].Value(SortedNodes[Node])
+    else
+      SortedNodes[Node].SkimValue := Infinity;
+    // Copy to skim data
+    var Factor := 1-MixFactor;
+    for var Node := 0 to SkimTo do
+    if Nodes[Node].HyperPathImpedance < Infinity then
+    SkimData[SkimVar,Node] := Factor*SkimData[SkimVar,Node] + MixFactor*Nodes[Node].SkimValue;
+  end;
 end;
 
 Procedure TPathBuilder.Assign(const Volumes: TFloat32MatrixRow);

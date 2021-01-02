@@ -12,7 +12,7 @@ interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  Classes,SysUtils,Types,PropSet,Parse,matio,matio.Formats,Globals,Connection;
+  Classes,SysUtils,Types,ArrayHlp,PropSet,Parse,matio,matio.Formats,Globals,Connection;
 
 Type
   TNonTransitConnection = Class(TConnection)
@@ -141,9 +141,9 @@ Procedure TNonTransitNetwork.Initialize(const [ref] LevelOfService: TPropertySet
 begin
   if LevelOfService.Count > 0 then
   begin
-    Times.Allocate(NNodes);
-    Distances.Allocate(NNodes);
-    Costs.Allocate(NNodes);
+    Times.Length := NNodes;
+    Distances.Length := NNodes;
+    Costs.Length := NNodes;
     LevelOfServiceReader := MatrixFormats.CreateReader(LevelOfService);
     if LevelOfServiceReader = nil then raise Exception.Create('Invalid matrix format');
   end;

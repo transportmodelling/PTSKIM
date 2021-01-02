@@ -12,7 +12,7 @@ interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  SysUtils,Classes,IniFiles,Parse,Globals,Network.Transit;
+  SysUtils,Classes,Math,IniFiles,ArrayHlp,Parse,Globals,Network.Transit;
 
 Type
   TIniFileLine = Class(TTransitLine)
@@ -22,6 +22,7 @@ Type
       CircularIdent = 'CIRCULAR';
       HeadwaysIdent = 'HEADWAY';
       DwellTimesIdent = 'DWELLTIME';
+      CapacitiesIdent = 'CAPACITY';
       PenaltiesIdent = 'PENALTY';
       NodesIdent = 'NODES';
       TimesIdent = 'TIME';
@@ -34,7 +35,7 @@ Type
     Var
       TwoWay: Boolean;
       Speed: Float64;
-    Procedure ReadFromStrings(const LineName: String; const NUserClasses,NodeOffset: Integer; const LineProperties: TStrings);
+    Procedure ReadFromStrings(const LineName: String; const NodeOffset: Integer; const LineProperties: TStrings);
     Procedure SaveVolumes(const IniFile: TMemIniFile);
     Function CreateReverseLine: TIniFileLine;
   end;
@@ -57,7 +58,7 @@ implementation
 ////////////////////////////////////////////////////////////////////////////////
 
 Procedure TIniFileLine.ReadFromStrings(const LineName: String;
-                                       const NUserClasses,NodeOffset: Integer;
+                                       const NodeOffset: Integer;
                                        const LineProperties: TStrings);
 begin
   // Name
@@ -80,9 +81,17 @@ begin
   FHeadWays := TStringParser.Create(Comma,LineProperties.Values[HeadwaysIdent]).ToFloatArray;
   // Dwell times
   FDwellTimes := TStringParser.Create(Comma,LineProperties.Values[DwellTimesIdent]).ToFloatArray;
+  if FDwellTimes.Length = 0 then FDwellTimes.Length := TimeOfDay+1;
+  // Capacities
+  FCapacities := TStringParser.Create(Comma,LineProperties.Values[CapacitiesIdent]).ToFloatArray;
+  if FCapacities.Length = 0 then
+  begin
+    FCapacities.Length := TimeOfDay+1;
+    FCapacities.Initialize(Infinity);
+  end;
   // Boarding penalties
   FBoardingPenalties := TStringParser.Create(Comma,LineProperties.Values[PenaltiesIdent]).ToFloatArray;
-  if Length(FBoardingPenalties) = 0 then SetLength(FBoardingPenalties,NUserClasses);
+  if FBoardingPenalties.Length = 0 then FBoardingPenalties.Length := NUserClasses;
   // Stop nodes
   FStopNodes := TStringParser.Create(Comma,LineProperties.Values[NodesIdent]).ToIntArray;
   for var Stop := 0 to NStops-1 do FStopNodes[Stop] := FStopNodes[Stop]-NodeOffset-1;
@@ -92,7 +101,7 @@ begin
     raise Exception.Create('Invalid ' + DistancesIdent + '-property line ' + LineName);
   // Costs
   var CostIndex := LineProperties.IndexOfName(CostsIdent);
-  if CostIndex < 0 then SetLength(FCosts,Nsegments) else
+  if CostIndex < 0 then FCosts.Length := Nsegments else
   begin
     FCosts := TStringParser.Create(Comma,LineProperties.ValueFromIndex[CostIndex]).ToFloatArray;
     if Length(FCosts) <> NSegments then
@@ -109,7 +118,7 @@ begin
   begin
     if LineProperties.IndexOfName(TimesIdent) < 0 then
     begin
-      SetLength(FTimes,NSegments);
+      FTimes.Length := NSegments;
       Speed := LineProperties.ValueFromIndex[SpeedIndex].ToDouble;
       if Speed > 0 then
         for var Segment := 0 to NSegments-1 do FTimes[Segment] := FDistances[Segment]/Speed
@@ -118,12 +127,22 @@ begin
     end else
       raise Exception.Create('Excessive ' + TimesIdent + '-property line ' + LineName);
   end;
-  // Boarding
-  SetLength(FBoardings,NUserClasses,NStops);
-  // Alighting
-  SetLength(FAlightings,NUserClasses,NStops);
-  // Volumes
-  SetLength(FVolumes,NUserClasses,NSegments);
+  // Boarding / Alightings / Volumes
+  SetLength(FBoardings,NUserClasses);
+  SetLength(FAlightings,NUserClasses);
+  SetLength(FVolumes,NUserClasses);
+  SetLength(StoredBoardings,NUserClasses);
+  SetLength(StoredAlightings,NUserClasses);
+  SetLength(StoredVolumes,NUserClasses);
+  for var UserClass := 0 to NUserClasses-1 do
+  begin
+    FBoardings[UserClass].Length := NStops;
+    FAlightings[UserClass].Length := NStops;
+    FVolumes[UserClass].Length := NStops;
+    StoredBoardings[UserClass].Length := NStops;
+    StoredAlightings[UserClass].Length := NStops;
+    StoredVolumes[UserClass].Length := NStops;
+  end;
 end;
 
 Function TIniFileLine.CreateReverseLine: TIniFileLine;
@@ -137,28 +156,40 @@ begin
   Result.FHeadWays := FHeadWays;
   // Dwell times
   Result.FDwellTimes := FDwellTimes;
+  // Capacities
+  Result.FCapacities := FCapacities;
   // Boarding penalties
   Result.FBoardingPenalties := FBoardingPenalties;
   // Stop nodes
-  SetLength(Result.FStopNodes,NStops);
+  Result.FStopNodes.Length := NStops;
   for var Stop := 0 to NStops-1 do Result.FStopNodes[Stop] := FStopNodes[NStops-Stop-1];
   // Speed
   Result.Speed := Speed;
   // Times
-  SetLength(Result.FTimes,NSegments);
+  Result.FTimes.Length := NSegments;
   for var Segment := 0 to NSegments-1 do Result.FTimes[Segment] := FTimes[NSegments-Segment-1];
   // Distances
-  SetLength(Result.FDistances,NSegments);
+  Result.FDistances.Length := NSegments;
   for var Segment := 0 to NSegments-1 do Result.FDistances[Segment] := FDistances[NSegments-Segment-1];
   // Costs
-  SetLength(Result.FCosts,NSegments);
+  Result.FCosts.Length := NSegments;
   for var Segment := 0 to NSegments-1 do Result.FCosts[Segment] := FCosts[NSegments-Segment-1];
-  // Boarding
-  SetLength(Result.FBoardings,Length(FBoardings),NStops);
-  // Alighting
-  SetLength(Result.FAlightings,Length(FAlightings),NStops);
-  // Volumes
-  SetLength(Result.FVolumes,Length(FVolumes),NSegments);
+  // Boarding / Alightings / Volumes
+  SetLength(Result.FBoardings,NUserClasses);
+  SetLength(Result.FAlightings,NUserClasses);
+  SetLength(Result.FVolumes,NUserClasses);
+  SetLength(Result.StoredBoardings,NUserClasses);
+  SetLength(Result.StoredAlightings,NUserClasses);
+  SetLength(Result.StoredVolumes,NUserClasses);
+  for var UserClass := 0 to NUserClasses-1 do
+  begin
+    Result.FBoardings[UserClass].Length := NStops;
+    Result.FAlightings[UserClass].Length := NStops;
+    Result.FVolumes[UserClass].Length := NStops;
+    Result.StoredBoardings[UserClass].Length := NStops;
+    Result.StoredAlightings[UserClass].Length := NStops;
+    Result.StoredVolumes[UserClass].Length := NStops;
+  end;
 end;
 
 Procedure TIniFileLine.SaveVolumes(const IniFile: TMemIniFile);
@@ -175,13 +206,26 @@ begin
   for var TimeOfDay := 1 to Length(FHeadways)-1 do Headways := Headways + ',' + FormatFloat('0.##',FHeadways[TimeOfDay]);
   IniFile.WriteString(FName,HeadwaysIdent,Headways);
   // Dwell times
-  var DwellTimes := FormatFloat('0.##',FDwellTimes[0]);
-  for var TimeOfDay := 1 to Length(FDwellTimes)-1 do DwellTimes := DwellTimes + ',' + FormatFloat('0.##',FDwellTimes[TimeOfDay]);
-  IniFile.WriteString(FName,DwellTimesIdent,Headways);
+  if FDwellTimes.MaxValue > 0.0 then
+  begin
+    var DwellTimes := FormatFloat('0.##',FDwellTimes[0]);
+    for var TimeOfDay := 1 to Length(FDwellTimes)-1 do DwellTimes := DwellTimes + ',' + FormatFloat('0.##',FDwellTimes[TimeOfDay]);
+    IniFile.WriteString(FName,DwellTimesIdent,Headways);
+  end;
+  // Capacities
+  if FCapacities.MinValue < Infinity then
+  begin
+    var Capacities := FormatFloat('0.##',FCapacities[0]);
+    for var TimeOfDay := 1 to Length(FCapacities)-1 do Capacities := Capacities + ',' + FormatFloat('0.##',FCapacities[TimeOfDay]);
+    IniFile.WriteString(FName,CapacitiesIdent,Capacities);
+  end;
   // Boarding penalties
-  var Penalties := FormatFloat('0.##',FBoardingPenalties[0]);
-  for var Userclass := 1 to Length(FBoardingPenalties)-1 do Penalties := Penalties + ',' + FormatFloat('0.##',FBoardingPenalties[Userclass]);
-  IniFile.WriteString(FName,PenaltiesIdent,Penalties);
+  if FBoardingPenalties.MaxValue > 0.0 then
+  begin
+    var Penalties := FormatFloat('0.##',FBoardingPenalties[0]);
+    for var Userclass := 1 to Length(FBoardingPenalties)-1 do Penalties := Penalties + ',' + FormatFloat('0.##',FBoardingPenalties[Userclass]);
+    IniFile.WriteString(FName,PenaltiesIdent,Penalties);
+  end;
   // Speed
   if Speed > 0 then IniFile.WriteFloat(FName,SpeedIdent,Speed);
   // Stop nodes
@@ -200,9 +244,12 @@ begin
   for var Segment := 1 to NSegments-1 do Distances := Distances + ',' + FormatFloat('0.##',FDistances[Segment]);
   IniFile.WriteString(FName,DistancesIdent,Distances);
   // Costs
-  var Costs := FormatFloat('0.##',FCosts[0]);
-  for var Segment := 1 to NSegments-1 do Costs := Costs + ',' + FormatFloat('0.##',FCosts[Segment]);
-  IniFile.WriteString(FName,CostsIdent,Costs);
+  if FCosts.MaxValue > 0.0 then
+  begin
+    var Costs := FormatFloat('0.##',FCosts[0]);
+    for var Segment := 1 to NSegments-1 do Costs := Costs + ',' + FormatFloat('0.##',FCosts[Segment]);
+    IniFile.WriteString(FName,CostsIdent,Costs);
+  end;
   for var UserClass := low(FVolumes) to high(FVolumes) do
   begin
     // Boardings
@@ -241,7 +288,7 @@ begin
         var TransitLine := TIniFileLine.Create;
         var LineName := LineNames[Line];
         IniFile.ReadSectionValues(LineName,LineProperties);
-        TransitLine.ReadFromStrings(LineName,NUserClasses,NodeOffset,LineProperties);
+        TransitLine.ReadFromStrings(LineName,NodeOffset,LineProperties);
         if TransitLine.TwoWay then
         begin
           FLines := FLines + [TransitLine,TransitLine.CreateReverseLine];
