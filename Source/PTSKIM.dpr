@@ -55,7 +55,8 @@ Var
   PathBuilders: array of TPathBuilder;
   DestinationsLoop: TParallelFor;
   SkimVar: String;
-  NThreads,NSkim,NIter: Integer;
+  NThreads,NSkim,MaxIter: Integer;
+  Converged: Float64;
   SkimVariables: TArray<String>;
   SkimVars: array of TSkimVar;
   Volumes: array of TFloat32MatrixRow;
@@ -151,11 +152,12 @@ begin
         TransitNetwork := TLinesIniFile.Create(ControlFile.ToFileName('LINES',true),Offset);
         Network := TNetwork.Create(TransitNetwork,NonTransitNetwork);
         // Determine number of iterations
+        Converged := ControlFile.ToFloat('CONV',1E-6);
         if Load > 0 then
         begin
-          NIter := Load;
+          MaxIter := Load;
           SetLength(Volumes,NSkim,NSkim);
-        end else if NSkimVar > 0 then NIter := 1 else NIter := 0;
+        end else if NSkimVar > 0 then MaxIter := 1 else MaxIter := 0;
         // Prepare for parallel execution
         NThreads := ControlFile.ToInt('NTHREADS',0);
         if NThreads <= 0 then NThreads := TThread.ProcessorCount-NThreads;
@@ -164,9 +166,9 @@ begin
         for var Thread := 0 to NThreads-1 do PathBuilders[Thread] := TPathBuilder.Create(Network);
         DestinationsLoop := TParallelFor.Create;
         // Load & Skim network
-        var Overloaded := true;
-        for var Iter := 1 to NIter do
-        if Overloaded then
+        var Convergence := Infinity;
+        for var Iter := 1 to MaxIter do
+        if Convergence > Converged then
         begin
           var MixFactor := 1/Iter;
           for var UserClass := 0 to NUserClasses-1 do
@@ -215,26 +217,12 @@ begin
               for var Thread := 0 to NThreads-1 do PathBuilders[Thread].PushVolumes(UserClass);
               TransitNetwork.StoreVolumes;
               Network.PushVolumes;
-              var Convergence := TransitNetwork.MixStoredVolumes(MixFactor);
-              // Stop iterating if network not overloaded
-              if Iter=1 then
-              begin
-                var TotalOverload := 0.0;
-                for var Line := 0 to TransitNetwork.NLines-1 do
-                TotalOverload := TotalOverload + TransitNetwork[Line].TotalOverload;
-                if TotalOverload = 0.0 then
-                begin
-                  Overloaded := false;
-                   if LogFile <> nil then LogFile.Log('No overloaded line sections')
-                end else
-                 if LogFile <> nil then
-                 LogFile.Log('Convergence iteration ' + Iter.ToString + ': ' + FormatFloat('0.0000',Convergence))
-              end else
-                if LogFile <> nil then
-                LogFile.Log('Convergence iteration ' + Iter.ToString + ': ' + FormatFloat('0.0000',Convergence));
+              Convergence := TransitNetwork.MixStoredVolumes(MixFactor);
+              if LogFile <> nil then
+              LogFile.Log('Convergence iteration ' + Iter.ToString + ': ' + FormatFloat('0.0000',Convergence));
             end;
             // Write skim data
-            if (NSkimVar > 0) and (Iter = NIter) or (not Overloaded) then
+            if (NSkimVar > 0) and ((Iter = MaxIter) or (Convergence <= Converged)) then
             begin
               SkimRows := nil;
               SkimWriter := nil;
