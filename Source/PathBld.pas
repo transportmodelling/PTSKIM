@@ -116,12 +116,13 @@ Type
   public
     Constructor Create(const Network: TNetwork);
     Procedure BuildPaths(const Destination: Integer);
+    Procedure UpdateRoutesCountCount(var RoutesCount: TArray<UInt16>);
     Procedure TopoligicalSort;
     Procedure Skim(const SkimTo: Integer;
                    const SkimVars: array of TSkimVar;
                    const SkimData: TSkimData); overload;
     Procedure Skim(const SkimTo: Integer;
-                   const MixFactor: Float64;
+                   const RoutesCount: TArray<UInt16>;
                    const SkimVars: array of TSkimVar;
                    const SkimData: TSkimData); overload;
     Procedure Assign(const Volumes: TFloat32MatrixRow);
@@ -508,6 +509,13 @@ begin
   end;
 end;
 
+Procedure TPathBuilder.UpdateRoutesCountCount(var RoutesCount: TArray<UInt16>);
+begin
+  for var Node := low(RoutesCount) to high(RoutesCount) do
+  if Nodes[Node].HyperPathImpedance < Infinity then
+  Inc(RoutesCount[Node]);
+end;
+
 Procedure TPathBuilder.TopoligicalSort;
 begin
   for var Node := 0 to NNodes-1 do SortedNodes[Node] := Nodes[Node];
@@ -544,7 +552,7 @@ begin
 end;
 
 Procedure TPathBuilder.Skim(const SkimTo: Integer;
-                            const MixFactor: Float64;
+                            const RoutesCount: TArray<UInt16>;
                             const SkimVars: array of TSkimVar;
                             const SkimData: TSkimData);
 begin
@@ -558,10 +566,12 @@ begin
     else
       SortedNodes[Node].SkimValue := Infinity;
     // Copy to skim data
-    var Factor := 1-MixFactor;
     for var Node := 0 to SkimTo do
     if Nodes[Node].HyperPathImpedance < Infinity then
-    SkimData[SkimVar,Node] := Factor*SkimData[SkimVar,Node] + MixFactor*Nodes[Node].SkimValue;
+    begin
+      var MixFactor := 1/RoutesCount[Node];
+      SkimData[SkimVar,Node] := (1-MixFactor)*SkimData[SkimVar,Node] + MixFactor*Nodes[Node].SkimValue;
+    end;
   end;
 end;
 

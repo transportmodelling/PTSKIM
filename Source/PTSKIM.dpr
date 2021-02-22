@@ -20,8 +20,9 @@ uses
   Parse,
   PropSet,
   matio,
-  matio.Formats,
-  matio.Text,
+  matio.formats,
+  matio.io,
+  matio.text,
   FloatHlp,
   Polynom,
   Spline,
@@ -60,6 +61,7 @@ Var
   SkimVariables: TArray<String>;
   SkimVars: array of TSkimVar;
   Volumes: array of TFloat32MatrixRow;
+  RoutesCount: array {destination} of TArray<UInt16>;
   SkimData: array {user class} of array {destination} of TSkimData;
   VolumesReader: TMatrixReader;
   SkimRows: array of TFloat64MatrixRow;
@@ -157,6 +159,7 @@ begin
         begin
           MaxIter := Load;
           SetLength(Volumes,NSkim,NSkim);
+          if Load > 1 then SetLength(RoutesCount,NSkim,NSkim);
         end else if NSkimVar > 0 then MaxIter := 1 else MaxIter := 0;
         // Prepare for parallel execution
         NThreads := ControlFile.ToInt('NTHREADS',0);
@@ -166,11 +169,11 @@ begin
         for var Thread := 0 to NThreads-1 do PathBuilders[Thread] := TPathBuilder.Create(Network);
         DestinationsLoop := TParallelFor.Create;
         // Load & Skim network
+        var Iter := 0;
         var Convergence := Infinity;
-        for var Iter := 1 to MaxIter do
-        if Convergence > Converged then
+        while (Iter < MaxIter) and (Convergence > Converged) do
         begin
-          var MixFactor := 1/Iter;
+          Inc(Iter);
           for var UserClass := 0 to NUserClasses-1 do
           begin
             Network.Initialize(UserClasses[UserClass]);
@@ -203,22 +206,28 @@ begin
                begin
                   PathBuilders[Thread].BuildPaths(Destination);
                   PathBuilders[Thread].TopoligicalSort;
-                  if Load > 0 then PathBuilders[Thread].Assign(Volumes[Destination]);
+                  if Load > 0 then
+                  begin
+                    if (UserClass = 0) and (Load > 1) then
+                      PathBuilders[Thread].UpdateRoutesCountCount(RoutesCount[Destination]);
+                    PathBuilders[Thread].Assign(Volumes[Destination]);
+                  end;
                   if NSkimVar > 0 then
                   if Iter = 1 then
                     PathBuilders[Thread].Skim(NSkim-1,SkimVars,UserClassSkimData[Destination])
                   else
-                    PathBuilders[Thread].Skim(NSkim-1,MixFactor,SkimVars,UserClassSkimData[Destination]);
+                    PathBuilders[Thread].Skim(NSkim-1,RoutesCount[Destination],SkimVars,UserClassSkimData[Destination]);
                end);
             // Load network
             if Load > 0 then
             begin
               // Copy volumes to network
+              var MixFactor := 1/Iter;
               for var Thread := 0 to NThreads-1 do PathBuilders[Thread].PushVolumes(UserClass);
               TransitNetwork.StoreVolumes;
               Network.PushVolumes;
               Convergence := TransitNetwork.MixStoredVolumes(MixFactor);
-              if LogFile <> nil then
+              if (LogFile <> nil) and (Load > 1) then
               LogFile.Log('Convergence iteration ' + Iter.ToString + ': ' + FormatFloat('0.0000',Convergence));
             end;
             // Write skim data
@@ -266,13 +275,12 @@ begin
               end;
             end;
           end;
-        end else
-          Break;
+        end;
         // Save network volumes
         if Load > 0 then
         begin
           var FileName := ControlFile.ToFileName('LOADS',false);
-          TransitNetwork.SaveVolumes(FileName);
+          if FileName <> '' then TransitNetwork.SaveVolumes(FileName);
         end;
       end else
         raise Exception.Create('Invalid value NNodes or NZones');
