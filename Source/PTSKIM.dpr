@@ -282,6 +282,13 @@ begin
           var FileName := ControlFile.ToFileName('LOADS',false);
           if FileName <> '' then TransitNetwork.SaveVolumes(FileName);
         end;
+        // Save stop totals
+        var FileName := ControlFile.ToFileName('STOPS',false);
+        if FileName <> '' then
+        begin
+          var Totals := Network.VolumeTotals;
+          Totals.SaveStopTotals(FileName);
+        end;
       end else
         raise Exception.Create('Invalid value NNodes or NZones');
     except

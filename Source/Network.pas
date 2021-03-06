@@ -12,17 +12,17 @@ interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  SysUtils,Math,Generics.Defaults,Generics.Collections,PropSet,matio,matio.Formats,
-  Globals,Connection,Network.Transit,Network.NonTransit,LineChoi,LineChoi.Gentile;
+  Classes,SysUtils,Math,Generics.Defaults,Generics.Collections,PropSet,FloatHlp,
+  matio,matio.Formats,Globals,Connection,Network.Transit,Network.NonTransit,
+  LineChoi,LineChoi.Gentile;
 
 Type
   TTransitConnection = Class(TConnection)
   private
     FFromStop,FToStop: Integer;
-  protected
-    Procedure PushVolumesToLine; override;
   public
     Procedure SetUserClassImpedance(const [ref] UserClass: TUserClass); override;
+    Procedure PushVolumesToLine; override;
   public
     Property FromStop: Integer read FFromStop;
     Property ToStop: Integer read FToStop;
@@ -66,6 +66,12 @@ Type
     Property RouteSections[Section: Integer]: TRouteSection read GetRouteSections; default;
   end;
 
+  TVolumeTotals = record
+    Boardings,FirstBoardings,Alightings,LastAlightings: array {node} of Float64;
+    AccessTrips,EgressTrips: array {zone} of array {stop} of Float64;
+    Procedure SaveStopTotals(const FileName: String);
+  end;
+
   TNetwork = Class
   private
     FNodes: array of TNode;
@@ -76,6 +82,7 @@ Type
     Procedure Initialize(const [ref] UserClass: TUserClass);
     Procedure MixVolumes(const UserClass: Integer; const MixFactor: Float64);
     Procedure PushVolumesToLines;
+    Function VolumeTotals: TVolumeTotals;
     Destructor Destroy; override;
   public
     Property Nodes[Node: Integer]: TNode read GetNodes; default;
@@ -203,6 +210,38 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 
+Procedure TVolumeTotals.SaveStopTotals(const FileName: String);
+begin
+  var Writer := TStreamWriter.Create(FileName);
+  try
+    Writer.Write('Stop');
+    Writer.Write(#9);
+    Writer.Write('Boardings');
+    Writer.Write(#9);
+    Writer.Write('FirstBoardings');
+    Writer.Write(#9);
+    Writer.Write('Alightings');
+    Writer.Write(#9);
+    Writer.WriteLine('LastAlightings');
+    for var Stop := 0 to NNodes-NZones-1 do
+    begin
+      Writer.Write(Stop+NZones+1);
+      Writer.Write(#9);
+      Writer.Write(FormatFloat('0.##',Boardings[Stop]));
+      Writer.Write(#9);
+      Writer.Write(FormatFloat('0.##',FirstBoardings[Stop]));
+      Writer.Write(#9);
+      Writer.Write(FormatFloat('0.##',Alightings[Stop]));
+      Writer.Write(#9);
+      Writer.WriteLine(FormatFloat('0.##',LastAlightings[Stop]));
+    end;
+  finally
+    Writer.Free;
+  end;
+end;
+
+////////////////////////////////////////////////////////////////////////////////
+
 Constructor TNetwork.Create(const TransitNetwork: TTransitNetwork;
                             const NonTransitNetwork: TNonTransitNetwork);
 begin
@@ -326,6 +365,41 @@ begin
   for var RouteSection in Node.FRouteSections do
   for var Connection in RouteSection.FConnections do
   Connection.PushVolumesToLine;
+end;
+
+Function TNetwork.VolumeTotals: TVolumeTotals;
+begin
+  SetLength(Result.Boardings,NNodes-NZones);
+  SetLength(Result.FirstBoardings,NNodes-NZones);
+  SetLength(Result.Alightings,NNodes-NZones);
+  SetLength(Result.LastAlightings,NNodes-NZones);
+  SetLength(Result.AccessTrips,NZones,NNodes-NZones);
+  SetLength(Result.EgressTrips,NZones,NNodes-NZones);
+  // Calculate totals
+  for var Node in FNodes do
+  for var RouteSection in Node.FRouteSections do
+  for var Connection in RouteSection.FConnections do
+  for var UserClass := 0 to NUserClasses-1 do
+  begin
+    var Volume := Connection.Volumes[UserClass];
+    case Connection.ConnectionType of
+      ctAccess:
+        begin
+          Result.FirstBoardings[Connection.ToNode-NZones].Add(Volume);
+          Result.AccessTrips[Connection.FromNode,Connection.ToNode-NZones].Add(Volume);
+        end;
+      ctTransit:
+        begin
+          Result.Boardings[Connection.FromNode-NZones].Add(Volume);
+          Result.Alightings[Connection.ToNode-NZones].Add(Volume);
+        end;
+      ctEgress:
+        begin
+          Result.LastAlightings[Connection.FromNode-NZones].Add(Volume);
+          Result.EgressTrips[Connection.ToNode,Connection.FromNode-NZones].Add(Volume);
+        end;
+    end;
+  end;
 end;
 
 Destructor TNetwork.Destroy;
