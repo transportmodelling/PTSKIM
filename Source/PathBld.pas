@@ -126,7 +126,7 @@ Type
                    const SkimVars: array of TSkimVar;
                    const SkimData: TSkimData); overload;
     Procedure Assign(const Volumes: TFloat32MatrixRow);
-    Procedure PushVolumes(const UserClass: Integer);
+    Procedure PushVolumesToNetwork;
     Destructor Destroy; override;
   public
     Property Network: TNetwork read FNetwork;
@@ -584,13 +584,13 @@ begin
   for var Node := NNodes-1 downto 0 do SortedNodes[Node].PropagateVolume;
 end;
 
-Procedure TPathBuilder.PushVolumes(const UserClass: Integer);
+Procedure TPathBuilder.PushVolumesToNetwork;
 begin
   for var Node in Nodes do
   for var Connection in Node.Connections do
   begin
     var NetworkConnection := Connection.Connection;
-    NetworkConnection.AddVolume(UserClass,Connection.ConnectionVolume);
+    NetworkConnection.AddVolume(Connection.ConnectionVolume);
     Connection.ConnectionVolume := 0.0;
   end;
 end;

@@ -22,18 +22,21 @@ Type
   TConnectionType = (ctAccess,ctTransit,ctTransfer,ctEgress);
 
   TConnection = Class
+  private
+    UserClassVolume: Float64;
+    Function GetVolumes(UserClass: Integer): Float64; inline;
   protected
     FConnectionType: TConnectionType;
     FFromNode,FToNode: Integer;
     FLine: TTransitLine;
     FImpedance,FHeadway,FPenalty,FTime,FDistance,FCost: Float64;
-    FVolumes: TArray<Float64>;
-    Function GetVolumes(UserClass: Integer): Float64; inline;
+    FMixedVolumes: TArray<Float64>;
   public
     Constructor Create;
     Procedure SetUserClassImpedance(const [ref] UserClass: TUserClass); virtual; abstract;
-    Procedure AddVolume(const UserClass: Integer; const Volume: Float64);
-    Procedure PushVolumes; virtual;
+    Procedure AddVolume(const Volume: Float64);
+    Procedure MixVolumes(const UserClass: Integer; const MixFactor: Float64);
+    Procedure PushVolumesToLine; virtual;
   public
     Property ConnectionType: TConnectionType read FConnectionType;
     Property FromNode: Integer read FFromNode;
@@ -54,20 +57,26 @@ implementation
 Constructor TConnection.Create;
 begin
   inherited Create;
-  SetLength(FVolumes,NUserClasses);
+  SetLength(FMixedVolumes,NUserClasses);
 end;
 
 Function TConnection.GetVolumes(UserClass: Integer): Float64;
 begin
-  Result := FVolumes[UserClass];
+  Result := FMixedVolumes[UserClass];
 end;
 
-Procedure TConnection.AddVolume(const UserClass: Integer; const Volume: Float64);
+Procedure TConnection.AddVolume(const Volume: Float64);
 begin
-  FVolumes[UserClass] := FVolumes[UserClass] + Volume;
+  UserClassVolume := UserClassVolume + Volume;
 end;
 
-Procedure TConnection.PushVolumes;
+Procedure TConnection.MixVolumes(const UserClass: Integer; const MixFactor: Float64);
+begin
+  FMixedVolumes[UserClass] := (1-MixFactor)*FMixedVolumes[UserClass] + MixFactor*UserClassVolume;
+  UserClassVolume := 0.0;
+end;
+
+Procedure TConnection.PushVolumesToLine;
 begin
 end;
 

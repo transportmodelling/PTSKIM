@@ -188,7 +188,7 @@ begin
     end;
     if Result <> nil then
     begin
-      SetLength(Result.FVolumes,NUserClasses);
+      SetLength(Result.FMixedVolumes,NUserClasses);
       Result.FFromNode := FromNode;
       Result.FToNode := ToNode;
       Result.FTime := Time;

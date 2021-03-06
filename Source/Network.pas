@@ -19,9 +19,10 @@ Type
   TTransitConnection = Class(TConnection)
   private
     FFromStop,FToStop: Integer;
+  protected
+    Procedure PushVolumesToLine; override;
   public
     Procedure SetUserClassImpedance(const [ref] UserClass: TUserClass); override;
-    Procedure PushVolumes; override;
   public
     Property FromStop: Integer read FFromStop;
     Property ToStop: Integer read FToStop;
@@ -73,7 +74,8 @@ Type
     Constructor Create(const TransitNetwork: TTransitNetwork;
                        const NonTransitNetwork: TNonTransitNetwork);
     Procedure Initialize(const [ref] UserClass: TUserClass);
-    Procedure PushVolumes;
+    Procedure MixVolumes(const UserClass: Integer; const MixFactor: Float64);
+    Procedure PushVolumesToLines;
     Destructor Destroy; override;
   public
     Property Nodes[Node: Integer]: TNode read GetNodes; default;
@@ -85,7 +87,7 @@ implementation
 
 Procedure TTransitConnection.SetUserClassImpedance(const [ref] UserClass: TUserClass);
 begin
-  if Line.SegmentOverload(FFromStop) = 0.0 then
+  if not Line.Overloaded(FFromStop) then
     if FCost = 0.0 then
       FImpedance := UserClass.BoardingPenalty + Line.BoardingPenalties[UserClass.UserClass] + FTime
     else
@@ -95,13 +97,10 @@ begin
     FImpedance := Infinity;
 end;
 
-Procedure TTransitConnection.PushVolumes;
+Procedure TTransitConnection.PushVolumesToLine;
 begin
-  for Var UserClass := low(FVolumes) to high(FVolumes) do
-  begin
-    FLine.AddVolume(UserClass,FFromStop,FToStop,FVolumes[UserClass]);
-    FVolumes[UserClass] := 0.0;
-  end;
+  for Var UserClass := low(FMixedVolumes) to high(FMixedVolumes) do
+  FLine.AddVolume(UserClass,FFromStop,FToStop,FMixedVolumes[UserClass]);
 end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -313,12 +312,20 @@ begin
   end;
 end;
 
-Procedure TNetwork.PushVolumes;
+Procedure TNetwork.MixVolumes(const UserClass: Integer; const MixFactor: Float64);
 begin
   for var Node in FNodes do
   for var RouteSection in Node.FRouteSections do
   for var Connection in RouteSection.FConnections do
-  Connection.PushVolumes;
+  Connection.MixVolumes(UserClass,MixFactor);
+end;
+
+Procedure TNetwork.PushVolumesToLines;
+begin
+  for var Node in FNodes do
+  for var RouteSection in Node.FRouteSections do
+  for var Connection in RouteSection.FConnections do
+  Connection.PushVolumesToLine;
 end;
 
 Destructor TNetwork.Destroy;

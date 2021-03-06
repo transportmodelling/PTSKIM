@@ -21,7 +21,6 @@ uses
   PropSet,
   matio,
   matio.formats,
-  matio.io,
   matio.text,
   FloatHlp,
   Polynom,
@@ -56,7 +55,7 @@ Var
   PathBuilders: array of TPathBuilder;
   DestinationsLoop: TParallelFor;
   SkimVar: String;
-  NThreads,NSkim,MaxIter: Integer;
+  NThreads,NSkim: Integer;
   Converged: Float64;
   SkimVariables: TArray<String>;
   SkimVars: array of TSkimVar;
@@ -92,7 +91,7 @@ begin
       if (NZones >= 0) and (NNodes > NZones) then
       begin
         var Offset := ControlFile.ToInt('OFFSET',0);
-        var Load := ControlFile.ToInt('LOAD',0);
+        var MaxIter := ControlFile.ToInt('LOAD',0);
         // Set userclasses
         SetLength(UserClasses,NUserClasses);
         var VOT := ControlFile.Parse('VOT',Comma).ToFloatArray;
@@ -155,11 +154,10 @@ begin
         Network := TNetwork.Create(TransitNetwork,NonTransitNetwork);
         // Determine number of iterations
         Converged := ControlFile.ToFloat('CONV',1E-6);
-        if Load > 0 then
+        if MaxIter > 0 then
         begin
-          MaxIter := Load;
           SetLength(Volumes,NSkim,NSkim);
-          if Load > 1 then SetLength(RoutesCount,NSkim,NSkim);
+          if MaxIter > 1 then SetLength(RoutesCount,NSkim,NSkim);
         end else if NSkimVar > 0 then MaxIter := 1 else MaxIter := 0;
         // Prepare for parallel execution
         NThreads := ControlFile.ToInt('NTHREADS',0);
@@ -181,7 +179,7 @@ begin
             if (Iter = 1) and (NSkimVar > 0) then SetLength(SkimData[UserClass],NSkim,NSkimVar,NSkim);
             var UserClassSkimData := SkimData[UserClass];
             // Read volumes
-            if Load > 0 then
+            if MaxIter > 0 then
             begin
               // Read from file
               var TripsLabel := ControlFile['TRIPS'+(UserClass+1).ToString];
@@ -206,9 +204,9 @@ begin
                begin
                   PathBuilders[Thread].BuildPaths(Destination);
                   PathBuilders[Thread].TopoligicalSort;
-                  if Load > 0 then
+                  if MaxIter > 0 then
                   begin
-                    if (UserClass = 0) and (Load > 1) then
+                    if (UserClass = 0) and (MaxIter > 1) then
                       PathBuilders[Thread].UpdateRoutesCountCount(RoutesCount[Destination]);
                     PathBuilders[Thread].Assign(Volumes[Destination]);
                   end;
@@ -218,17 +216,12 @@ begin
                   else
                     PathBuilders[Thread].Skim(NSkim-1,RoutesCount[Destination],SkimVars,UserClassSkimData[Destination]);
                end);
-            // Load network
-            if Load > 0 then
+            // Copy volumes to network
+            if MaxIter > 0 then
             begin
-              // Copy volumes to network
               var MixFactor := 1/Iter;
-              for var Thread := 0 to NThreads-1 do PathBuilders[Thread].PushVolumes(UserClass);
-              TransitNetwork.StoreVolumes;
-              Network.PushVolumes;
-              Convergence := TransitNetwork.MixStoredVolumes(MixFactor);
-              if (LogFile <> nil) and (Load > 1) then
-              LogFile.Log('Convergence iteration ' + Iter.ToString + ': ' + FormatFloat('0.0000',Convergence));
+              for var Thread := 0 to NThreads-1 do PathBuilders[Thread].PushVolumesToNetwork;
+              Network.MixVolumes(UserClass,MixFactor);
             end;
             // Write skim data
             if (NSkimVar > 0) and ((Iter = MaxIter) or (Convergence <= Converged)) then
@@ -275,9 +268,16 @@ begin
               end;
             end;
           end;
+          // Load transit lines
+          TransitNetwork.ResetVolumes;
+          Network.PushVolumesToLines;
+          // Calculate convergence
+          Convergence := TransitNetwork.Convergence;
+          if (LogFile <> nil) and (MaxIter > 1) then
+          LogFile.Log('Convergence iteration ' + Iter.ToString + ': ' + FormatFloat('0.0000',Convergence));
         end;
         // Save network volumes
-        if Load > 0 then
+        if MaxIter > 0 then
         begin
           var FileName := ControlFile.ToFileName('LOADS',false);
           if FileName <> '' then TransitNetwork.SaveVolumes(FileName);

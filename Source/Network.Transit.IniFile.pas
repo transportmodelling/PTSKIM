@@ -131,18 +131,14 @@ begin
   SetLength(FBoardings,NUserClasses);
   SetLength(FAlightings,NUserClasses);
   SetLength(FVolumes,NUserClasses);
-  SetLength(StoredBoardings,NUserClasses);
-  SetLength(StoredAlightings,NUserClasses);
-  SetLength(StoredVolumes,NUserClasses);
   for var UserClass := 0 to NUserClasses-1 do
   begin
     FBoardings[UserClass].Length := NStops;
     FAlightings[UserClass].Length := NStops;
-    FVolumes[UserClass].Length := NStops;
-    StoredBoardings[UserClass].Length := NStops;
-    StoredAlightings[UserClass].Length := NStops;
-    StoredVolumes[UserClass].Length := NStops;
+    FVolumes[UserClass].Length := NSegments;
   end;
+  FTotalVolumes.Length := NSegments;
+  PreviousVolumes.Length := NSegments;
 end;
 
 Function TIniFileLine.CreateReverseLine: TIniFileLine;
@@ -178,18 +174,14 @@ begin
   SetLength(Result.FBoardings,NUserClasses);
   SetLength(Result.FAlightings,NUserClasses);
   SetLength(Result.FVolumes,NUserClasses);
-  SetLength(Result.StoredBoardings,NUserClasses);
-  SetLength(Result.StoredAlightings,NUserClasses);
-  SetLength(Result.StoredVolumes,NUserClasses);
   for var UserClass := 0 to NUserClasses-1 do
   begin
     Result.FBoardings[UserClass].Length := NStops;
     Result.FAlightings[UserClass].Length := NStops;
-    Result.FVolumes[UserClass].Length := NStops;
-    Result.StoredBoardings[UserClass].Length := NStops;
-    Result.StoredAlightings[UserClass].Length := NStops;
-    Result.StoredVolumes[UserClass].Length := NStops;
+    Result.FVolumes[UserClass].Length := NSegments;
   end;
+  Result.FTotalVolumes.Length := NSegments;
+  Result.PreviousVolumes.Length := NSegments;
 end;
 
 Procedure TIniFileLine.SaveVolumes(const IniFile: TMemIniFile);
