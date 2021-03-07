@@ -21,12 +21,17 @@ Type
   private
     Function GetHeadways(TimeOfDay: Integer): Float64; inline;
     Function GetDwellTimes(TimeOfDay: Integer): Float64; inline;
+    Function GetSeats(TimeOfDay: Integer): Float64; inline;
     Function GetCapacities(TimeOfDay: Integer): Float64; inline;
     Function GetBoardingPenalties(UserClass: Integer): Float64; inline;
     Function GetStopNodes(Stop: Integer): Integer; inline;
     Function GetTimes(Segment: Integer): Float64; inline;
     Function GetDistances(Segment: Integer): Float64; inline;
     Function GetCosts(Segment: Integer): Float64; inline;
+    Function GetBoardings(UserClass,Stop: Integer): Float64; inline;
+    Function GetTotalBoardings(Stop: Integer): Float64; inline;
+    Function GetAlightings(UserClass,Stop: Integer): Float64; inline;
+    Function GetTotalAlightings(Stop: Integer): Float64; inline;
     Function GetVolumes(UserClass,Segment: Integer): Float64; inline;
     Function GetTotalVolumes(Segment: Integer): Float64; inline;
     Function Convergence: Float64;
@@ -34,8 +39,8 @@ Type
     FName: string;
     FCircular: Boolean;
     FStopNodes: TArray<Integer>;
-    FHeadways,FDwellTimes,FCapacities,FBoardingPenalties,FTimes,FDistances,FCosts,
-    FTotalVolumes,PreviousVolumes: TArray<Float64>;
+    FHeadways,FDwellTimes,FSeats,FCapacities,FBoardingPenalties,FTimes,FDistances,FCosts,
+    FTotalBoardings,FTotalAlightings,FTotalVolumes,PreviousVolumes: TArray<Float64>;
     FVolumes,FBoardings,FAlightings: array of TArray<Float64>;
   public
     Function NStops: Integer; inline;
@@ -47,6 +52,7 @@ Type
     Property Name: String read Fname;
     Property Circular: Boolean read FCircular;
     Property Headways[TimeOfDay: Integer]: Float64 read GetHeadways;
+    Property Seats[TimeOfDay: Integer]: Float64 read GetSeats;
     Property Capacities[TimeOfDay: Integer]: Float64 read GetCapacities;
     Property DwellTimes[TimeOfDay: Integer]: Float64 read GetDwellTimes;
     Property BoardingPenalties[UserClass: Integer]: Float64 read GetBoardingPenalties;
@@ -54,6 +60,10 @@ Type
     Property Times[Segment: Integer]: Float64 read GetTimes;
     Property Distances[Segment: Integer]: Float64 read GetDistances;
     Property Costs[Segment: Integer]: Float64 read GetCosts;
+    Property Boardings[UserClass,Stop: Integer]: Float64 read GetBoardings;
+    Property TotalBoardings[Stop: Integer]: Float64 read GetTotalBoardings;
+    Property Alightings[UserClass,Stop: Integer]: Float64 read GetAlightings;
+    Property TotalAlightings[Stop: Integer]: Float64 read GetTotalAlightings;
     Property Volumes[UserClass,Segment: Integer]: Float64 read GetVolumes;
     Property TotalVolumes[Segment: Integer]: Float64 read GetTotalVolumes;
   end;
@@ -88,6 +98,15 @@ begin
     Result := FDwellTimes[TimeOfDay];
   except
     raise Exception.Create('Dwell time transit line ' + FName + ' not available for time of day ' + (TimeOfDay+1).ToString);
+  end;
+end;
+
+Function TTransitLine.GetSeats(TimeOfDay: Integer): Float64;
+begin
+  try
+    Result := FSeats[TimeOfDay];
+  except
+    raise Exception.Create('Seats transit line ' + FName + ' not available for time of day ' + (TimeOfDay+1).ToString);
   end;
 end;
 
@@ -129,6 +148,26 @@ begin
   Result := FCosts[Segment];
 end;
 
+Function TTransitLine.GetBoardings(UserClass,Stop: Integer): Float64;
+begin
+  Result := FBoardings[UserClass,Stop]
+end;
+
+Function TTransitLine.GetTotalBoardings(Stop: Integer): Float64;
+begin
+  Result := FTotalBoardings[Stop];
+end;
+
+Function TTransitLine.GetAlightings(UserClass,Stop: Integer): Float64;
+begin
+  Result := FAlightings[UserClass,Stop]
+end;
+
+Function TTransitLine.GetTotalAlightings(Stop: Integer): Float64;
+begin
+  Result := FTotalAlightings[Stop]
+end;
+
 Function TTransitLine.GetVolumes(UserClass,Segment: Integer): Float64;
 begin
   if UserClass < Length(FVolumes) then
@@ -166,18 +205,21 @@ end;
 
 Procedure TTransitLine.ResetVolumes;
 begin
-  for var UserClass := 0 to NUserClasses-1 do
+  for var Stop := 0 to NStops-1 do
   begin
-    for var Stop := 0 to NStops-1 do
+    for var UserClass := 0 to NUserClasses-1 do
     begin
-      FBoardings[UserClass,Stop] := 0.0;
-      FAlightings[UserClass,Stop] := 0.0;
+      begin
+        FBoardings[UserClass,Stop] := 0.0;
+        FAlightings[UserClass,Stop] := 0.0;
+      end;
+      FTotalBoardings[Stop] := 0.0;
+      FTotalAlightings[Stop] := 0.0;
     end;
-    for var Segment := 0 to NSegments-1 do
-    FVolumes[UserClass,Segment] := 0.0;
   end;
   for var Segment := 0 to NSegments-1 do
   begin
+    for var UserClass := 0 to NUserClasses-1 do FVolumes[UserClass,Segment] := 0.0;
     PreviousVolumes[Segment] := FTotalVolumes[Segment];
     FTotalVolumes[Segment] := 0.0;
   end;

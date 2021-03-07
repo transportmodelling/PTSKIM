@@ -36,7 +36,9 @@ uses
   PathBld in 'PathBld.pas',
   SkimVar in 'SkimVar.pas',
   LineChoi in 'LineChoi.pas',
-  LineChoi.Gentile in 'LineChoi.Gentile.pas';
+  LineChoi.Gentile in 'LineChoi.Gentile.pas',
+  Crowding in 'Crowding.pas',
+  Crowding.WardmanWhelan in 'Crowding.WardmanWhelan.pas';
 
 Type
   TPTSkim = Class

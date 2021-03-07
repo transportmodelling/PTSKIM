@@ -23,6 +23,7 @@ Type
       HeadwaysIdent = 'HEADWAY';
       DwellTimesIdent = 'DWELLTIME';
       CapacitiesIdent = 'CAPACITY';
+      SeatsIdent = 'SEATS';
       PenaltiesIdent = 'PENALTY';
       NodesIdent = 'NODES';
       TimesIdent = 'TIME';
@@ -89,6 +90,9 @@ begin
     FCapacities.Length := TimeOfDay+1;
     FCapacities.Initialize(Infinity);
   end;
+  // Seats
+  FSeats := TStringParser.Create(Comma,LineProperties.Values[SeatsIdent]).ToFloatArray;
+  if FSeats.Length = 0 then FSeats := FCapacities;
   // Boarding penalties
   FBoardingPenalties := TStringParser.Create(Comma,LineProperties.Values[PenaltiesIdent]).ToFloatArray;
   if FBoardingPenalties.Length = 0 then FBoardingPenalties.Length := NUserClasses;
@@ -137,6 +141,8 @@ begin
     FAlightings[UserClass].Length := NStops;
     FVolumes[UserClass].Length := NSegments;
   end;
+  FTotalBoardings.Length := NStops;
+  FTotalAlightings.Length := NStops;
   FTotalVolumes.Length := NSegments;
   PreviousVolumes.Length := NSegments;
 end;
