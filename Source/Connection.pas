@@ -12,7 +12,7 @@ interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  SysUtils,Globals,Network.Transit;
+  SysUtils,Globals,UserClass,Network.Transit;
 
 Type
   // Access: from zone node to transit node
@@ -29,7 +29,7 @@ Type
     FConnectionType: TConnectionType;
     FFromNode,FToNode: Integer;
     FLine: TTransitLine;
-    FImpedance,FHeadway,FPenalty,FTime,FDistance,FCost: Float64;
+    FImpedance,FHeadway,FBoardingPenalty,FCrowdingPenalty,FTime,FDistance,FCost: Float64;
     FMixedVolumes: TArray<Float64>;
   public
     Constructor Create;

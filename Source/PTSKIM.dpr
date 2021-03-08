@@ -28,6 +28,7 @@ uses
   PFL,
   Log,
   Globals in 'Globals.pas',
+  UserClass in 'UserClass.pas',
   Connection in 'Connection.pas',
   Network in 'Network.pas',
   Network.Transit in 'Network.Transit.pas',
@@ -98,6 +99,7 @@ begin
         SetLength(UserClasses,NUserClasses);
         var VOT := ControlFile.Parse('VOT',Comma).ToFloatArray;
         var BoardingPenalty := ControlFile.Parse('PENALTY',Comma).ToFloatArray;
+        var CrowdingModel := ControlFile.Parse('CROWD',Comma).ToIntArray;
         for var UserClass := 0 to NUserClasses-1 do
         begin
           UserClasses[UserClass].UserClass := UserClass;
@@ -109,6 +111,15 @@ begin
             UserClasses[UserClass].ValueOfTime := 0.0
           else
             UserClasses[UserClass].ValueOfTime := VOT[UserClass];
+          if Length(CrowdingModel) = 0 then
+            UserClasses[UserClass].CrowdingModel := nil
+          else
+            case CrowdingModel[UserClass] of
+              0: UserClasses[UserClass].CrowdingModel := nil;
+              1: UserClasses[UserClass].CrowdingModel := TWardmanWhelanCrowdingModel.Create(ppCommuting);
+              2: UserClasses[UserClass].CrowdingModel := TWardmanWhelanCrowdingModel.Create(ppOther);
+              else raise Exception.Create('Invalid crowding model');
+            end
         end;
         // Set skim-variables
         if ControlFile.Contains('SKIM',SkimVar) then

@@ -13,8 +13,8 @@ interface
 
 Uses
   Classes,SysUtils,Math,Generics.Defaults,Generics.Collections,PropSet,FloatHlp,
-  matio,matio.Formats,Globals,Connection,Network.Transit,Network.NonTransit,
-  LineChoi,LineChoi.Gentile;
+  matio,matio.Formats,Globals,UserClass,Connection,Network.Transit,Network.NonTransit,
+  LineChoi,LineChoi.Gentile,Crowding,Crowding.WardmanWhelan;
 
 Type
   TTransitConnection = Class(TConnection)
@@ -95,12 +95,17 @@ implementation
 Procedure TTransitConnection.SetUserClassImpedance(const [ref] UserClass: TUserClass);
 begin
   if not Line.Overloaded(FFromStop) then
-    if FCost = 0.0 then
-      FImpedance := UserClass.BoardingPenalty + Line.BoardingPenalties[UserClass.UserClass] + FTime
+  begin
+    if UserClass.CrowdingModel <> nil then
+      FCrowdingPenalty := UserClass.CrowdingModel.CrowdingPenalty(Line,FromStop,ToStop)
     else
-      FImpedance := UserClass.BoardingPenalty + Line.BoardingPenalties[UserClass.UserClass] +
-                      FTime + FCost/UserClass.ValueOfTime
-  else
+      FCrowdingPenalty := 0.0;
+    FBoardingPenalty := UserClass.BoardingPenalty + Line.BoardingPenalties[UserClass.UserClass];
+    if FCost = 0.0 then
+      FImpedance := FBoardingPenalty + FCrowdingPenalty + FTime
+    else
+      FImpedance := FBoardingPenalty + FCrowdingPenalty + FTime + FCost/UserClass.ValueOfTime
+  end else
     FImpedance := Infinity;
 end;
 

@@ -12,7 +12,7 @@ interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  Classes,SysUtils,Types,ArrayHlp,PropSet,Parse,matio,matio.Formats,Globals,Connection;
+  Classes,SysUtils,Types,ArrayHlp,PropSet,Parse,matio,matio.Formats,Globals,UserClass,Connection;
 
 Type
   TNonTransitConnection = Class(TConnection)

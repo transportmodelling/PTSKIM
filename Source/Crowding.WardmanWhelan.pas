@@ -35,27 +35,21 @@ Type
   private
     FPurpose: TPurpose;
     a,b,c,d: Float64;
-    Procedure SetPurpose(Purpose: TPurpose);
   strict protected
     Function SeatedMultiplier(const SeatingCapacity,TotalCapacity,Volume: Float64): Float64; override;
     Function StandingMultiplier(const SeatingCapacity,TotalCapacity,Volume: Float64): Float64; override;
   public
-    Constructor Create;
-    Property Purpose: TPurpose read FPurpose write SetPurpose;
+    Constructor Create(Purpose: TPurpose);
+    Property Purpose: TPurpose read FPurpose;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
 implementation
 ////////////////////////////////////////////////////////////////////////////////
 
-Constructor TWardmanWhelanCrowdingModel.Create;
+Constructor TWardmanWhelanCrowdingModel.Create(Purpose: TPurpose);
 begin
   inherited Create;
-  SetPurpose(ppCommuting);
-end;
-
-Procedure TWardmanWhelanCrowdingModel.SetPurpose(Purpose: TPurpose);
-begin
   FPurpose := Purpose;
   case Purpose of
     ppCommuting:
