@@ -20,8 +20,6 @@ Type
   TPathNode = Class;
   TPathConnection = Class;
 
-  TSkimData  = array {skim var} of TFloat64MatrixRow;
-
   TSkimVar = Class
   protected
     Function Value(const Node: TPathNode): Float64; virtual; abstract;
@@ -116,15 +114,15 @@ Type
   public
     Constructor Create(const Network: TNetwork);
     Procedure BuildPaths(const Destination: Integer);
-    Procedure UpdateRoutesCountCount(var RoutesCount: TArray<UInt16>);
-    Procedure TopoligicalSort;
+    Procedure UpdateRoutesCountCount(var RoutesCount: TArray<Byte>);
+    Procedure TopologicalSort;
     Procedure Skim(const SkimTo: Integer;
-                   const SkimVars: array of TSkimVar;
-                   const SkimData: TSkimData); overload;
+                   const SkimVar: TSkimVar;
+                   const SkimData: TFloat64MatrixRow); overload;
     Procedure Skim(const SkimTo: Integer;
-                   const RoutesCount: TArray<UInt16>;
-                   const SkimVars: array of TSkimVar;
-                   const SkimData: TSkimData); overload;
+                   const RoutesCount: TArray<Byte>;
+                   const SkimVar: TSkimVar;
+                   const SkimData: TFloat64MatrixRow); overload;
     Procedure Assign(const Volumes: TFloat32MatrixRow);
     Procedure PushVolumesToNetwork;
     Destructor Destroy; override;
@@ -509,14 +507,14 @@ begin
   end;
 end;
 
-Procedure TPathBuilder.UpdateRoutesCountCount(var RoutesCount: TArray<UInt16>);
+Procedure TPathBuilder.UpdateRoutesCountCount(var RoutesCount: TArray<Byte>);
 begin
   for var Node := low(RoutesCount) to high(RoutesCount) do
   if Nodes[Node].HyperPathImpedance < Infinity then
   Inc(RoutesCount[Node]);
 end;
 
-Procedure TPathBuilder.TopoligicalSort;
+Procedure TPathBuilder.TopologicalSort;
 begin
   for var Node := 0 to NNodes-1 do SortedNodes[Node] := Nodes[Node];
   TArray.Sort<TPathNode>(SortedNodes,TComparer<TPathNode>.Construct(
@@ -529,49 +527,42 @@ begin
 end;
 
 Procedure TPathBuilder.Skim(const SkimTo: Integer;
-                            const SkimVars: array of TSkimVar;
-                            const SkimData: TSkimData);
+                            const SkimVar: TSkimVar;
+                            const SkimData: TFloat64MatrixRow);
 begin
-  for var SkimVar := low(SkimVars) to high(SkimVars) do
-  begin
-    // Skim
-    SortedNodes[0].SkimValue := 0.0;
-    for var Node := 1 to NNodes-1 do
-    if SortedNodes[Node].HyperPathImpedance < Infinity then
-      SortedNodes[Node].SkimValue := SkimVars[SkimVar].Value(SortedNodes[Node])
-    else
-      SortedNodes[Node].SkimValue := Infinity;
-    // Copy to skim data
-    var SkimVarData := SkimData[SkimVar];
-    for var Node := 0 to SkimTo do
-    if Nodes[Node].HyperPathImpedance < Infinity then
-      SkimVarData[Node] := Nodes[Node].SkimValue
-    else
-      SkimVarData[Node] := InfProxy;
-  end;
+  // Skim
+  SortedNodes[0].SkimValue := 0.0;
+  for var Node := 1 to NNodes-1 do
+  if SortedNodes[Node].HyperPathImpedance < Infinity then
+    SortedNodes[Node].SkimValue := SkimVar.Value(SortedNodes[Node])
+  else
+    SortedNodes[Node].SkimValue := Infinity;
+  // Copy to skim data
+  for var Node := 0 to SkimTo do
+  if Nodes[Node].HyperPathImpedance < Infinity then
+    SkimData[Node] := Nodes[Node].SkimValue
+  else
+    SkimData[Node] := InfProxy;
 end;
 
 Procedure TPathBuilder.Skim(const SkimTo: Integer;
-                            const RoutesCount: TArray<UInt16>;
-                            const SkimVars: array of TSkimVar;
-                            const SkimData: TSkimData);
+                            const RoutesCount: TArray<Byte>;
+                            const SkimVar: TSkimVar;
+                            const SkimData: TFloat64MatrixRow);
 begin
-  for var SkimVar := low(SkimVars) to high(SkimVars) do
+  // Skim
+  SortedNodes[0].SkimValue := 0.0;
+  for var Node := 1 to NNodes-1 do
+  if SortedNodes[Node].HyperPathImpedance < Infinity then
+    SortedNodes[Node].SkimValue := SkimVar.Value(SortedNodes[Node])
+  else
+    SortedNodes[Node].SkimValue := Infinity;
+  // Copy to skim data
+  for var Node := 0 to SkimTo do
+  if Nodes[Node].HyperPathImpedance < Infinity then
   begin
-    // Skim
-    SortedNodes[0].SkimValue := 0.0;
-    for var Node := 1 to NNodes-1 do
-    if SortedNodes[Node].HyperPathImpedance < Infinity then
-      SortedNodes[Node].SkimValue := SkimVars[SkimVar].Value(SortedNodes[Node])
-    else
-      SortedNodes[Node].SkimValue := Infinity;
-    // Copy to skim data
-    for var Node := 0 to SkimTo do
-    if Nodes[Node].HyperPathImpedance < Infinity then
-    begin
-      var MixFactor := 1/RoutesCount[Node];
-      SkimData[SkimVar,Node] := (1-MixFactor)*SkimData[SkimVar,Node] + MixFactor*Nodes[Node].SkimValue;
-    end;
+    var MixFactor := 1/RoutesCount[Node];
+    SkimData[Node] := (1-MixFactor)*SkimData[Node] + MixFactor*Nodes[Node].SkimValue;
   end;
 end;
 

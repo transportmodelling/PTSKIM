@@ -59,12 +59,11 @@ Var
   DestinationsLoop: TParallelFor;
   SkimVar: String;
   NThreads,NSkim: Integer;
-  Converged: Float64;
   SkimVariables: TArray<String>;
   SkimVars: array of TSkimVar;
   Volumes: array of TFloat32MatrixRow;
-  RoutesCount: array {destination} of TArray<UInt16>;
-  SkimData: array {user class} of array {destination} of TSkimData;
+  RoutesCount,ImpedanceCount: array {destination} of TArray<Byte>;
+  SkimData: array {user class} of array {destination} of array {skim var} of TFloat64MatrixRow;
   VolumesReader: TMatrixReader;
   SkimRows: array of TFloat64MatrixRow;
   SkimWriter: TMatrixWriter;
@@ -94,9 +93,9 @@ begin
       if (NZones >= 0) and (NNodes > NZones) then
       begin
         var Offset := ControlFile.ToInt('OFFSET',0);
-        var MaxIter := ControlFile.ToInt('LOAD',0);
         // Set userclasses
         SetLength(UserClasses,NUserClasses);
+        var Crowding := false;
         var VOT := ControlFile.Parse('VOT',Comma).ToFloatArray;
         var BoardingPenalty := ControlFile.Parse('PENALTY',Comma).ToFloatArray;
         var CrowdingModel := ControlFile.Parse('CROWD',Comma).ToIntArray;
@@ -116,19 +115,30 @@ begin
           else
             case CrowdingModel[UserClass] of
               0: UserClasses[UserClass].CrowdingModel := nil;
-              1: UserClasses[UserClass].CrowdingModel := TWardmanWhelanCrowdingModel.Create(ppCommuting);
-              2: UserClasses[UserClass].CrowdingModel := TWardmanWhelanCrowdingModel.Create(ppOther);
+              1: begin
+                   Crowding := true;
+                   UserClasses[UserClass].CrowdingModel := TWardmanWhelanCrowdingModel.Create(ppCommuting);
+                 end;
+              2: begin
+                   Crowding := true;
+                   UserClasses[UserClass].CrowdingModel := TWardmanWhelanCrowdingModel.Create(ppOther);
+                 end
               else raise Exception.Create('Invalid crowding model');
             end
         end;
         // Set skim-variables
+        var ImpedanceSkim := -1;
         if ControlFile.Contains('SKIM',SkimVar) then
         begin
           SkimVariables := TStringParser.Create(Comma,SkimVar).ToStrArray;
           if Length(SkimVariables) > 0 then
           begin
             for var Skim := low(SkimVariables) to high(SkimVariables) do
-            if SameText(SkimVariables[Skim],'IMP') then SkimVars := SkimVars + [TImpedanceSkim.Create] else
+            if SameText(SkimVariables[Skim],'IMP') then
+            begin
+              ImpedanceSkim := Skim;
+              SkimVars := SkimVars + [TImpedanceSkim.Create];
+            end else
             if SameText(SkimVariables[Skim],'IWAIT') then SkimVars := SkimVars + [TInitialWaitTimeSkim.Create] else
             if SameText(SkimVariables[Skim],'WAIT') then SkimVars := SkimVars + [TWaitTimeSkim.Create] else
             if SameText(SkimVariables[Skim],'BRD') then SkimVars := SkimVars + [TBoardingsSkim.Create] else
@@ -140,8 +150,8 @@ begin
               raise Exception.Create('Unknown skim variable ' + SkimVariables[Skim]);
           end;
         end;
-        var NSkimVar := Length(SkimVars);
         // Set skim range
+        var NSkimVar := Length(SkimVars);
         if NSkimVar > 0 then
         begin
           SetLength(SkimData,NUserClasses);
@@ -166,12 +176,27 @@ begin
         TransitNetwork := TLinesIniFile.Create(ControlFile.ToFileName('LINES',true),Offset);
         Network := TNetwork.Create(TransitNetwork,NonTransitNetwork);
         // Determine number of iterations
-        Converged := ControlFile.ToFloat('CONV',1E-6);
-        if MaxIter > 0 then
+        var Converged := ControlFile.ToFloat('CONV',1E-6);
+        var MaxIter := ControlFile.ToInt('LOAD',0);
+        var FirstImpedanceIter := 0;
+        if MaxIter < 256 then
         begin
-          SetLength(Volumes,NSkim,NSkim);
-          if MaxIter > 1 then SetLength(RoutesCount,NSkim,NSkim);
-        end else if NSkimVar > 0 then MaxIter := 1 else MaxIter := 0;
+          if MaxIter > 0 then
+          begin
+            SetLength(Volumes,NSkim,NSkim);
+            if MaxIter > 1 then
+            begin
+              SetLength(RoutesCount,NSkim,NSkim);
+              if (ImpedanceSkim >= 0) and Crowding then
+              begin
+                SetLength(ImpedanceCount,NSkim,NSkim);
+                FirstImpedanceIter := MaxIter-ControlFile.ToInt('IMPSKM')+1;
+                if FirstImpedanceIter <= 0 then raise Exception.Create('Invalid IMPSKM-value');
+              end;
+            end;
+          end else if NSkimVar > 0 then MaxIter := 1 else MaxIter := 0;
+        end else
+          raise Exception.Create('Invalid LOAD-value');
         // Prepare for parallel execution
         NThreads := ControlFile.ToInt('NTHREADS',0);
         if NThreads <= 0 then NThreads := TThread.ProcessorCount-NThreads;
@@ -216,18 +241,44 @@ begin
                Procedure(Destination,Thread: Integer)
                begin
                   PathBuilders[Thread].BuildPaths(Destination);
-                  PathBuilders[Thread].TopoligicalSort;
+                  PathBuilders[Thread].TopologicalSort;
                   if MaxIter > 0 then
                   begin
                     if (UserClass = 0) and (MaxIter > 1) then
+                    begin
                       PathBuilders[Thread].UpdateRoutesCountCount(RoutesCount[Destination]);
+                      if (FirstImpedanceIter > 0) and (Iter >= FirstImpedanceIter) then
+                      PathBuilders[Thread].UpdateRoutesCountCount(ImpedanceCount[Destination]);
+                    end;
                     PathBuilders[Thread].Assign(Volumes[Destination]);
                   end;
                   if NSkimVar > 0 then
-                  if Iter = 1 then
-                    PathBuilders[Thread].Skim(NSkim-1,SkimVars,UserClassSkimData[Destination])
+                  if FirstImpedanceIter = 0 then
+                    for var SkimVar := low(SkimVars) to high(SkimVars) do
+                    begin
+                      if Iter = 1 then
+                        PathBuilders[Thread].Skim(NSkim-1,SkimVars[SkimVar],UserClassSkimData[Destination,SkimVar])
+                      else
+                        PathBuilders[Thread].Skim(NSkim-1,RoutesCount[Destination],SkimVars[SkimVar],UserClassSkimData[Destination,SkimVar])
+                    end
                   else
-                    PathBuilders[Thread].Skim(NSkim-1,RoutesCount[Destination],SkimVars,UserClassSkimData[Destination]);
+                    for var SkimVar := low(SkimVars) to high(SkimVars) do
+                    begin
+                      if SkimVar = ImpedanceSkim then
+                      begin
+                        if Iter = FirstImpedanceIter then
+                          PathBuilders[Thread].Skim(NSkim-1,SkimVars[SkimVar],UserClassSkimData[Destination,SkimVar])
+                        else
+                          if Iter > FirstImpedanceIter then
+                          PathBuilders[Thread].Skim(NSkim-1,ImpedanceCount[Destination],SkimVars[SkimVar],UserClassSkimData[Destination,SkimVar])
+                      end else
+                      begin
+                        if Iter = 1 then
+                          PathBuilders[Thread].Skim(NSkim-1,SkimVars[SkimVar],UserClassSkimData[Destination,SkimVar])
+                        else
+                          PathBuilders[Thread].Skim(NSkim-1,RoutesCount[Destination],SkimVars[SkimVar],UserClassSkimData[Destination,SkimVar])
+                      end;
+                    end
                end);
             // Copy volumes to network
             if MaxIter > 0 then
