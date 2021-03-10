@@ -1,7 +1,7 @@
-START 2-1-2021 11:44:48
-Executable: PTSKIM.exe; 2-1-2021 11:37:39
+START 10-3-2021 21:21:40
+Executable: PTSKIM.exe; 10-3-2021 20:57:53
 Running on: PC-LVV171
-Control file: Capacity-Constraint.ctl; 2-1-2021 11:32:05
+Control file: Capacity-Constraint.ctl; 10-3-2021 21:06:58
 Convergence iteration 1: 279.1667
 Convergence iteration 2: 181.2500
 Convergence iteration 3: 60.4167
@@ -95,61 +95,11 @@ Convergence iteration 90: 1.5840
 Convergence iteration 91: 1.5492
 Convergence iteration 92: 2.4248
 Convergence iteration 93: 1.5253
-Convergence iteration 94: 1.4928
-Convergence iteration 95: 2.3544
+Convergence iteration 94: 2.3636
+Convergence iteration 95: 1.5020
 Convergence iteration 96: 1.4707
 Convergence iteration 97: 2.2968
 Convergence iteration 98: 1.4491
 Convergence iteration 99: 1.4198
 Convergence iteration 100: 2.2336
-Convergence iteration 101: 1.3998
-Convergence iteration 102: 2.1816
-Convergence iteration 103: 1.3802
-Convergence iteration 104: 1.3536
-Convergence iteration 105: 2.1246
-Convergence iteration 106: 1.3354
-Convergence iteration 107: 2.0775
-Convergence iteration 108: 1.3175
-Convergence iteration 109: 1.2933
-Convergence iteration 110: 2.0257
-Convergence iteration 111: 1.2766
-Convergence iteration 112: 1.2538
-Convergence iteration 113: 1.9763
-Convergence iteration 114: 1.2382
-Convergence iteration 115: 1.9356
-Convergence iteration 116: 1.2228
-Convergence iteration 117: 1.2019
-Convergence iteration 118: 1.8905
-Convergence iteration 119: 1.1875
-Convergence iteration 120: 1.8531
-Convergence iteration 121: 1.1734
-Convergence iteration 122: 1.1542
-Convergence iteration 123: 1.8118
-Convergence iteration 124: 1.1408
-Convergence iteration 125: 1.1226
-Convergence iteration 126: 1.7722
-Convergence iteration 127: 1.1100
-Convergence iteration 128: 1.7394
-Convergence iteration 129: 1.0977
-Convergence iteration 130: 1.0808
-Convergence iteration 131: 1.7029
-Convergence iteration 132: 1.0691
-Convergence iteration 133: 1.6725
-Convergence iteration 134: 1.0577
-Convergence iteration 135: 1.0420
-Convergence iteration 136: 1.6388
-Convergence iteration 137: 1.0312
-Convergence iteration 138: 1.6106
-Convergence iteration 139: 1.0205
-Convergence iteration 140: 1.0059
-Convergence iteration 141: 1.5793
-Convergence iteration 142: 0.9958
-Convergence iteration 143: 0.9819
-Convergence iteration 144: 1.5492
-Convergence iteration 145: 0.9722
-Convergence iteration 146: 1.5240
-Convergence iteration 147: 0.9628
-Convergence iteration 148: 0.9498
-Convergence iteration 149: 1.4959
-Convergence iteration 150: 0.9407
-STOP 2-1-2021 11:44:49
+STOP 10-3-2021 21:21:42
