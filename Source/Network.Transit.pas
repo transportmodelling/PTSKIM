@@ -209,13 +209,11 @@ begin
   begin
     for var UserClass := 0 to NUserClasses-1 do
     begin
-      begin
-        FBoardings[UserClass,Stop] := 0.0;
-        FAlightings[UserClass,Stop] := 0.0;
-      end;
-      FTotalBoardings[Stop] := 0.0;
-      FTotalAlightings[Stop] := 0.0;
+      FBoardings[UserClass,Stop] := 0.0;
+      FAlightings[UserClass,Stop] := 0.0;
     end;
+    FTotalBoardings[Stop] := 0.0;
+    FTotalAlightings[Stop] := 0.0;
   end;
   for var Segment := 0 to NSegments-1 do
   begin
@@ -228,7 +226,9 @@ end;
 Procedure TTransitLine.AddVolume(const UserClass,FromStop,ToStop: Integer; const Volume: Float64);
 begin
   FBoardings[UserClass,FromStop] := FBoardings[UserClass,FromStop] + Volume;
+  FTotalBoardings[FromStop] := FTotalBoardings[FromStop] + Volume;
   FAlightings[UserClass,ToStop] := FAlightings[UserClass,ToStop] + Volume;
+  FTotalAlightings[ToStop] := FTotalAlightings[ToStop] + Volume;
   for var Segment := FromStop to ToStop-1 do
   begin
     FVolumes[UserClass,Segment] := FVolumes[UserClass,Segment] + Volume;
