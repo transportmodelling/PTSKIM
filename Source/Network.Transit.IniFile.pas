@@ -186,6 +186,8 @@ begin
     Result.FAlightings[UserClass].Length := NStops;
     Result.FVolumes[UserClass].Length := NSegments;
   end;
+  Result.FTotalBoardings.Length := NStops;
+  Result.FTotalAlightings.Length := NStops;
   Result.FTotalVolumes.Length := NSegments;
   Result.PreviousVolumes.Length := NSegments;
 end;
