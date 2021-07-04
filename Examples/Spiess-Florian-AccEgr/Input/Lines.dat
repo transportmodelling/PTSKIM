@@ -1,0 +1,5 @@
+LINE	NSTOPS	HEADWAY	TWOWAY	NAME
+1	2	12	F	Line 1
+2	3	12	F	Line 2
+3	3	30	F	Line 4
+4	2	6	F	Line 4
