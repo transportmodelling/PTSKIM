@@ -13,7 +13,7 @@ NODE	X	Y	NAME
 12	80722	455897	Javastraat
 13	80887	455628	Mauritskade
 14	81091	455159	Kneuterdijk
-15	81408	45165	Centrum
+15	81431	454856	Centrum
 16	81741	454573	Bierkade
 17	81948	453988	Station Hollands Spoor
 18	81884	453575	Leeghwaterplein
@@ -290,3 +290,41 @@ NODE	X	Y	NAME
 289	78429	450223	Vrederustlaan
 290	78089	449948	Ambachtsweg
 291	77680	449657	Lozerlaan
+292	77564	456233	Tesselseplein
+293	78046	456375	Nieboerweg
+294	78274	456604	Douzastraat
+295	78442	456956	Statenlaan
+296	78709	457479	Duinstraat
+297	78950	457545	Prins Willemstraat
+298	79628	458673	Harstenhoekplein
+299	79850	458488	Gentsestraat
+300	80241	458572	Duinkerksestraat
+301	80321	458372	Doorniksestraat
+302	80563	458093	Pompstationsweg
+303	80573	457644	Badhuisweg
+304	80583	457374	Plesmanweg
+305	80480	457016	Madurodam
+306	80563	456720	Kerkhoflaan
+307	80644	456597	Bankaplein
+308	80853	456195	Nassauplein
+309	81875	454782	Nieuwe Haven
+310	81978	453778	Station Hollands Spoor
+311	81677	453586	Megastores hoofdingang
+312	81448	453374	Megastores
+313	81354	453193	Calandplein
+314	81687	452965	Neherkade
+315	81899	452671	Jonckbloetplein
+316	82038	452363	Jan van Beersstraat
+317	81583	452061	Ledeganckplein
+318	81307	451962	Alberdingk Thijmstraat
+319	81583	451260	Van Vredenburchweg
+320	81776	450935	Generaal Spoorlaan
+321	81920	450784	Dr. H. Colijnlaan
+322	81247	449617	Wethouder Brederodelaan
+323	81227	449293	Albert Schweitzerlaan
+324	80988	449168	Aletta Jacobsstraat
+325	80793	449374	Pater Doumenstraat
+326	80672	449717	Sir Winston Churchilllaan
+327	80587	449999	Prinses Marijkesingel
+328	80407	450452	De Schilp
+329	81705	454655	Nieuwe Haven

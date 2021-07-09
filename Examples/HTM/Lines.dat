@@ -15,3 +15,5 @@ LINE	NSTOPS	HEADWAY	SPEED	DWELLTIME	PENALTY	TWOWAY	NAME
 14	11	15	415	0.5	5	F	HTM Buslijn 20, richting Theo Mann Bouwmeesterlaan
 15	11	15	415	0.5	5	F	HTM Buslijn 20, richting Centraal Station
 16	37	12	415	0.5	5	T	HTM Buslijn 21
+17	49	20	415	0.5	5	F	HTM Buslijn 22, richting De Schilp
+18	49	20	415	0.5	5	F	HTM Buslijn 22, richting Duindorp
