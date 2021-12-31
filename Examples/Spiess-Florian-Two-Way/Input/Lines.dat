@@ -1,5 +1,9 @@
-LINE	NSTOPS	HEADWAY	TWOWAY	NAME
-1	2	12	T	Line 1
-2	3	12	T	Line 2
-3	3	30	T	Line 4
-4	2	6	T	Line 4
+LINE	REVERSE	HEADWAY	NAME
+1	5	12	Line 1
+2	6	12	Line 2
+3	7	30	Line 3
+4	8	6	Line 4
+5	1	12	Line 1 - reverse
+6	2	12	Line 2 - reverse
+7	3	30	Line 3 - reverse
+8	4	6	Line 4 - reverse

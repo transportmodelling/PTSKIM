@@ -1,12 +1,13 @@
 NNODES: 4
 NCLASS: 1
-TOD: 1
-VOT: 0
+STD: T
 LOAD: 1
-TRNSP: 0
-SKIM: TIM,IVT,DST,CST,IWAIT,WAIT,IMP
-LINES: input\Spiess-Florian.lin
-TRIPS1: file=input\trips.dat; format=txt; delim=space
-SKIM1: file=output\Spiess-Florian-Two-Way-skim.dat; format=txt; decimals=3
-LOADS: output\Spiess-Florian-Two-Way.vol
+SKIM: TIM,IVT,IWAIT,WAIT,IMP
+LINES: .\input\lines.dat
+STOPS: .\input\stops.dat
+SEGMENTS: .\input\segments.dat
+TRIPS1: file=.\input\trips.dat; format=txt; delim=tab
+SKIM1: file=.\output\Spiess-Florian-Two-Way-skim.dat; format=txt; decimals=3
+BOARDS: .\output\boardings.dat
+VOLUMES: .\output\volumes.dat
 LOG: output\Spiess-Florian-Two-Way.log

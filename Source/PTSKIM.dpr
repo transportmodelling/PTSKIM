@@ -32,14 +32,14 @@ uses
   Connection in 'Connection.pas',
   Network in 'Network.pas',
   Network.Transit in 'Network.Transit.pas',
-  Network.Transit.IniFile in 'Network.Transit.IniFile.pas',
   Network.NonTransit in 'Network.NonTransit.pas',
   PathBld in 'PathBld.pas',
   SkimVar in 'SkimVar.pas',
   LineChoi in 'LineChoi.pas',
   LineChoi.Gentile in 'LineChoi.Gentile.pas',
   Crowding in 'Crowding.pas',
-  Crowding.WardmanWhelan in 'Crowding.WardmanWhelan.pas';
+  Crowding.WardmanWhelan in 'Crowding.WardmanWhelan.pas',
+  Network.Transit.Tables in 'Network.Transit.Tables.pas';
 
 Type
   TPTSkim = Class
@@ -50,10 +50,10 @@ Type
 Procedure TPTSkim.Execute(ControlFileName: String);
 Var
   ControlFile: TPropertySet;
-  LogFile: TLogFile;
+  SpeedTimeDist: TSpeedTimeDist;
   UserClasses: array of TuserClass;
   NonTransitNetwork: TNonTransitNetwork;
-  TransitNetwork: TLinesIniFile;
+  TransitNetwork: TTransitNetworkTables;
   Network: TNetwork;
   PathBuilders: array of TPathBuilder;
   DestinationsLoop: TParallelFor;
@@ -68,7 +68,6 @@ Var
   SkimRows: array of TFloat64MatrixRow;
   SkimWriter: TMatrixWriter;
 begin
-  LogFile := nil;
   NonTransitNetwork := nil;
   TransitNetwork := nil;
   Network := nil;
@@ -89,10 +88,8 @@ begin
       NZones := ControlFile.ToInt('NZONES',0);
       NNodes := ControlFile.ToInt('NNODES');
       NUserClasses := ControlFile.ToInt('NCLASS');
-      TimeOfDay := ControlFile.ToInt('TOD')-1;
       if (NZones >= 0) and (NNodes > NZones) then
       begin
-        var Offset := ControlFile.ToInt('OFFSET',0);
         // Set userclasses
         SetLength(UserClasses,NUserClasses);
         var Crowding := false;
@@ -172,8 +169,19 @@ begin
           NonTransitNetwork.Initialize(ControlFile.ToFileName('COORD',true),
                                        ControlFile.ToFloat('DETOUR',1.0),
                                        CONTROLFile.ToFloat('SPEED'));
+        // Set speed-time-distance input mode
+        var TableMode := ControlFile['STD'];
+        if SameText(TableMode,'T') then SpeedTimeDist := stdTime else
+        if SameText(TableMode,'TD') then SpeedTimeDist := stdTimeDist else
+        if SameText(TableMode,'TS') then SpeedTimeDist := stdTimeSpeed else
+        if SameText(TableMode,'DS') then SpeedTimeDist := stdDistSpeed else
+        raise Exception.Create('Invalid STD-value');
         // Create network
-        TransitNetwork := TLinesIniFile.Create(ControlFile.ToFileName('LINES',true),Offset);
+        var Offset := ControlFile.ToInt('OFFSET',0);
+        var LinesFileName := ControlFile.ToPath('LINES');
+        var StopsFileName := ControlFile.ToPath('STOPS');
+        var SegmentsFileName := ControlFile.ToPath('SEGMENTS');
+        TransitNetwork := TTransitNetworkTables.Create(SpeedTimeDist,LinesFileName,StopsFileName,SegmentsFileName,Offset);
         Network := TNetwork.Create(TransitNetwork,NonTransitNetwork);
         // Determine number of iterations
         var Converged := ControlFile.ToFloat('CONV',1E-6);
@@ -340,18 +348,13 @@ begin
           if (LogFile <> nil) and (MaxIter > 1) then
           LogFile.Log('Convergence iteration ' + Iter.ToString + ': ' + FormatFloat('0.0000',Convergence));
         end;
-        // Save network volumes
+        // Save output tables
         if MaxIter > 0 then
         begin
-          var FileName := ControlFile.ToFileName('LOADS',false);
-          if FileName <> '' then TransitNetwork.SaveVolumes(FileName);
-        end;
-        // Save stop totals
-        var FileName := ControlFile.ToFileName('STOPS',false);
-        if FileName <> '' then
-        begin
-          var Totals := Network.VolumeTotals;
-          Totals.SaveStopTotals(FileName);
+          var BoardingsFileName := ControlFile.ToFileName('BOARDS',false);
+          if BoardingsFileName <> '' then TransitNetwork.SaveStopsTable(BoardingsFileName);
+          var VolumesFileName := ControlFile.ToFileName('VOLUMES',false);
+          if VolumesFileName <> '' then TransitNetwork.SaveSegmentsTable(VolumesFileName);
         end;
       end else
         raise Exception.Create('Invalid value NNodes or NZones');

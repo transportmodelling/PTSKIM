@@ -1,7 +1,7 @@
-START 10-3-2021 21:21:40
-Executable: PTSKIM.exe; 10-3-2021 20:57:53
-Running on: PC-LVV171
-Control file: Capacity-Constraint.ctl; 10-3-2021 21:06:58
+START 31-12-2021 16:19:08
+Executable: PTSKIM.exe; 31-12-2021 16:13:23
+Computer: PC-LVV171
+Control file: Capacity-Constraint.ctl; 31-12-2021 15:35:44
 Convergence iteration 1: 279.1667
 Convergence iteration 2: 181.2500
 Convergence iteration 3: 60.4167
@@ -102,4 +102,4 @@ Convergence iteration 97: 2.2968
 Convergence iteration 98: 1.4491
 Convergence iteration 99: 1.4198
 Convergence iteration 100: 2.2336
-STOP 10-3-2021 21:21:42
+STOP 31-12-2021 16:19:10

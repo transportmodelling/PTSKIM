@@ -33,8 +33,8 @@ Var
   Standing,StandingProbability,Multiplier: Float64;
 begin
   Result := 0.0;
-  var LineSeats := Line.Seats[TimeOfDay];
-  var LineCapacity := Line.Capacities[TimeOfDay];
+  var LineSeats := Line.Seats;
+  var LineCapacity := Line.Capacity;
   // Initialize standing probability
   var Boardings := Line.TotalBoardings[FromStop];
   var Volume := Line.TotalVolumes[FromStop];

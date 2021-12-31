@@ -12,19 +12,15 @@ interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  SysUtils,Math,FloatHlp,Globals;
+  SysUtils,Classes,Math,FloatHlp,Globals;
 
 Type
   TTransitLine = Class
   // The time property gives the time moving between two sequential stop nodes
   // (a line segment) and does not include the dwell time
   private
-    Function GetHeadways(TimeOfDay: Integer): Float64; inline;
-    Function GetDwellTimes(TimeOfDay: Integer): Float64; inline;
-    Function GetSeats(TimeOfDay: Integer): Float64; inline;
-    Function GetCapacities(TimeOfDay: Integer): Float64; inline;
-    Function GetBoardingPenalties(UserClass: Integer): Float64; inline;
     Function GetStopNodes(Stop: Integer): Integer; inline;
+    Function GetDwellTimes(Stop: Integer): Float64; inline;
     Function GetTimes(Segment: Integer): Float64; inline;
     Function GetDistances(Segment: Integer): Float64; inline;
     Function GetCosts(Segment: Integer): Float64; inline;
@@ -35,28 +31,30 @@ Type
     Function GetVolumes(UserClass,Segment: Integer): Float64; inline;
     Function GetTotalVolumes(Segment: Integer): Float64; inline;
     Function Convergence: Float64;
-  strict protected
+  protected
     FName: string;
+    FNStops,FNSegments: Integer;
     FCircular: Boolean;
+    FHeadway,FBoardingPenalty,FSeats,FCapacity: Float64;
     FStopNodes: TArray<Integer>;
-    FHeadways,FDwellTimes,FSeats,FCapacities,FBoardingPenalties,FTimes,FDistances,FCosts,
+    FDwellTimes,FTimes,FDistances,FCosts,
     FTotalBoardings,FTotalAlightings,FTotalVolumes,PreviousVolumes: TArray<Float64>;
-    FVolumes,FBoardings,FAlightings: array of TArray<Float64>;
+    FBoardings,FAlightings,FVolumes: array of TArray<Float64>;
   public
-    Function NStops: Integer; inline;
-    Function NSegments: Integer; inline;
     Procedure ResetVolumes;
     Procedure AddVolume(const UserClass,FromStop,ToStop: Integer; const Volume: Float64);
     Function Overloaded(Stop: Integer): Boolean;
   public
     Property Name: String read Fname;
+    Property NStops: Integer read FNStops;
+    Property NSegments: Integer read FNSegments;
     Property Circular: Boolean read FCircular;
-    Property Headways[TimeOfDay: Integer]: Float64 read GetHeadways;
-    Property Seats[TimeOfDay: Integer]: Float64 read GetSeats;
-    Property Capacities[TimeOfDay: Integer]: Float64 read GetCapacities;
-    Property DwellTimes[TimeOfDay: Integer]: Float64 read GetDwellTimes;
-    Property BoardingPenalties[UserClass: Integer]: Float64 read GetBoardingPenalties;
+    Property Headway: Float64 read FHeadway;
+    Property Seats: Float64 read FSeats;
+    Property Capacity: Float64 read FCapacity;
+    Property BoardingPenalty: Float64 read FBoardingPenalty;
     Property StopNodes[Stop: Integer]: Integer read GetStopNodes; default;
+    Property DwellTimes[Stop: Integer]: Float64 read GetDwellTimes;
     Property Times[Segment: Integer]: Float64 read GetTimes;
     Property Distances[Segment: Integer]: Float64 read GetDistances;
     Property Costs[Segment: Integer]: Float64 read GetCosts;
@@ -70,12 +68,13 @@ Type
 
   TTransitNetwork = Class
   strict protected
+    FNLines: Integer;
     Function GetLines(Line: Integer): TTransitLine; virtual; abstract;
   public
-    Function NLines: Integer; virtual; abstract;
     Procedure ResetVolumes;
     Function Convergence: Float64;
   public
+    Property NLines: Integer read FNLines;
     Property Lines[Line: Integer]: TTransitLine read GetLines; default;
   end;
 
@@ -83,54 +82,14 @@ Type
 implementation
 ////////////////////////////////////////////////////////////////////////////////
 
-Function TTransitLine.GetHeadways(TimeOfDay: Integer): Float64;
-begin
-  try
-    Result := FHeadways[TimeOfDay];
-  except
-    raise Exception.Create('Headway transit line ' + FName + ' not available for time of day ' + (TimeOfDay+1).ToString);
-  end;
-end;
-
-Function TTransitLine.GetDwellTimes(TimeOfDay: Integer): Float64;
-begin
-  try
-    Result := FDwellTimes[TimeOfDay];
-  except
-    raise Exception.Create('Dwell time transit line ' + FName + ' not available for time of day ' + (TimeOfDay+1).ToString);
-  end;
-end;
-
-Function TTransitLine.GetSeats(TimeOfDay: Integer): Float64;
-begin
-  try
-    Result := FSeats[TimeOfDay];
-  except
-    raise Exception.Create('Seats transit line ' + FName + ' not available for time of day ' + (TimeOfDay+1).ToString);
-  end;
-end;
-
-Function TTransitLine.GetCapacities(TimeOfDay: Integer): Float64;
-begin
-  try
-    Result := FCapacities[TimeOfDay];
-  except
-    raise Exception.Create('Capacity transit line ' + FName + ' not available for time of day ' + (TimeOfDay+1).ToString);
-  end;
-end;
-
-Function TTransitLine.GetBoardingPenalties(UserClass: Integer): Float64;
-begin
-  try
-    Result := FBoardingPenalties[UserClass];
-  except
-    raise Exception.Create('Boarding penalty transit line ' + FName + ' not available for user class ' + (UserClass+1).ToString);
-  end;
-end;
-
 Function TTransitLine.GetStopNodes(Stop: Integer): Integer;
 begin
   Result := FStopNodes[Stop];
+end;
+
+Function TTransitLine.GetDwellTimes(Stop: Integer): Float64;
+begin
+  Result := FDwellTimes[Stop];
 end;
 
 Function TTransitLine.GetTimes(Segment: Integer): Float64;
@@ -188,19 +147,9 @@ begin
   Result := Result + Abs(FTotalVolumes[Segment]-PreviousVolumes[Segment]);
 end;
 
-Function TTransitLine.NStops: Integer;
-begin
-  Result := Length(FStopNodes);
-end;
-
-Function TTransitLine.NSegments: Integer;
-begin
-  if FCircular then Result := NStops else Result := NStops-1;
-end;
-
 Function TTransitLine.Overloaded(Stop: Integer): Boolean;
 begin
-  Result := (FTotalVolumes[Stop] > FCapacities[TimeOfDay]);
+  Result := (FTotalVolumes[Stop] > FCapacity);
 end;
 
 Procedure TTransitLine.ResetVolumes;
