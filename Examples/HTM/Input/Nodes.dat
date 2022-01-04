@@ -1,4 +1,4 @@
-NODE	X	Y	NAME
+NODE	XCOORD	YCOORD	NAME
 1	79765	459166	Zwarte Pad
 2	79392	458813	Kurhaus
 3	79187	458566	Scheveningseslag
@@ -328,3 +328,99 @@ NODE	X	Y	NAME
 327	80587	449999	Prinses Marijkesingel
 328	80407	450452	De Schilp
 329	81705	454655	Nieuwe Haven
+330	81018	458313	Maurits de Brauwweg
+331	81729	457669	HMC Bronovo
+332	81975	457314	Ruychrocklaan
+333	82292	456857	Wassenaarseweg
+334	82505	456533	Willem Witsenplein
+335	83008	455740	Theresiastraat
+336	83152	455533	Juliana van Stolberglaan
+337	84601	454685	Spinozalaan
+338	84672	454495	Koningin Julianaplein
+339	84925	453948	Rozenboomlaan
+340	84772	453694	Laan van Heldenburg
+341	84443	453615	Voorburg Station
+342	84086	453316	Redenburgstraat
+343	83856	453135	Diaconessenhuis
+344	83485	452794	Binckhorstlaan
+345	83262	452625	Bilderdijklaan
+346	83048	452494	Herenstraat
+347	83013	452187	Esdoornstraat
+348	82800	451774	Paulus Potterlaan
+349	82618	451571	Hendrik Ravesteijnplein
+350	82281	451294	Rijswijkse Schouwburg
+351	81934	450957	Huis te Landelaan
+352	81502	450375	In de Bogaard
+353	81294	450519	Prinses Beatrixlaan
+354	80973	450375	Minister van den Tempellaan
+355	80374	450584	De Schilp
+356	80063	450919	Sammersweg
+357	79762	451110	Cannenburglaan
+358	79383	451550	Loevesteinlaan
+359	79078	451914	Fluitenbergstraat
+360	77924	452835	Escamplaan
+361	77724	453140	Volendamlaan
+362	77507	453310	Okkernootstraat
+363	76864	453650	Colijnplein
+364	83421	452721	Geestbrug
+365	83584	452924	Binckhorstlaan
+366	84199	453411	Sonnenburghlaan
+367	74854	453705	Kijkduin
+368	75224	453621	Kijkduinsestraat
+369	75780	453861	Muurbloemweg
+370	76075	454011	Arabislaan
+371	76351	454188	De Savornin Lohmanlaan
+372	76742	454519	Oude Buizerdlaan
+373	77009	454695	Vliegenvangerlaan
+374	77363	454924	Kwartellaan
+375	78048	455367	Eksterlaan
+376	78586	455696	Houtrustweg
+377	78683	455781	Van Boetzelaerlaan
+378	78924	455949	Aert van der Goesstraat
+379	79592	455685	Banstraat
+380	79930	455649	Laan van Merdervoort
+381	80601	455903	Alexanderplein
+382	82537	455405	Prins Clauslaan
+383	82728	455546	Koningin Marialaan
+384	82924	455680	Laan van Nieuw Oost Indië
+385	83213	455890	Spaarwaterstraat
+386	83505	456077	De Eerensplein
+387	83724	456242	Overbosch
+388	84001	456415	Reigersbergenweg
+389	84405	456713	Barnsteenhorst
+390	84618	456862	Saffierhorst
+391	84783	456677	Het Kleine Loo
+392	85196	456252	Station Mariahoeve
+393	75091	453930	Kijkduin Strand
+394	80954	454518	Grote Marktstraat
+395	80438	453929	Vaillantplein
+396	80192	453598	Haagse Markt
+397	79918	453409	Schalk Burgerstraat
+398	79676	453265	De la Reyweg
+399	79312	453107	Soestdijkseplein
+400	78995	452821	Zuiderpark
+401	78661	452382	Almeloplein
+402	78672	452171	Gramsbergenlaan
+403	77664	451040	Vrederustlaan
+404	77369	450768	Beresteinlaan
+405	77069	450501	Randveen
+406	77228	450135	Melis Stokelaan
+407	77443	449766	Erasmusweg
+408	75372	453293	Teunisbloemplein
+409	75366	452770	Westduin
+410	76193	452386	Louis Armstrongplein
+411	79825	453179	Barneveldstraat
+412	80046	452705	Moerweg
+413	80582	452476	Melis Stokelaan
+414	80983	452310	Station Moerwijk
+415	81252	452636	Stieltjesstraat
+416	82960	453884	Wegastraat
+417	83215	453583	Zonweg
+418	83555	453776	Melkwegstraat
+419	83773	453531	Saturnusstraat
+420	84031	453593	Maanweg
+421	77833	457003	Norfolk
+422	78016	456574	Dr. Lelykade
+423	79236	456647	World Forum
+424	82493	454456	Weteringkade
+425	82759	454214	Poolsterstraat
