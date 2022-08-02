@@ -17,6 +17,11 @@ Uses
   LineChoi,LineChoi.Gentile,Crowding,Crowding.WardmanWhelan;
 
 Type
+  TNonTransitConnection = Class(TConnection)
+  public
+    Procedure SetUserClassImpedance(const [ref] UserClass: TUserClass); override;
+  end;
+
   TTransitConnection = Class(TConnection)
   private
     FFromStop,FToStop: Integer;
@@ -68,14 +73,21 @@ Type
 
   TNetwork = Class
   private
-    FNodes: array of TNode;
+    Type
+      TAcessVolumes = record
+        Line,Node: Integer;
+        Access: array {user class} of Float64;
+      end;
+    Var
+      FNodes: array of TNode;
     Function GetNodes(Node: Integer): TNode; inline;
   public
     Constructor Create(const TransitNetwork: TTransitNetwork;
-                       const NonTransitNetwork: TNonTransitNetwork);
+                       const NonTransitLevelOfService: TNonTransitLevelOfService);
     Procedure Initialize(const [ref] UserClass: TUserClass);
     Procedure MixVolumes(const UserClass: Integer; const MixFactor: Float64);
     Procedure PushVolumesToLines;
+    Procedure SaveAccessTable(const FileName: String);
     Destructor Destroy; override;
   public
     Property Nodes[Node: Integer]: TNode read GetNodes; default;
@@ -83,6 +95,16 @@ Type
 
 ////////////////////////////////////////////////////////////////////////////////
 implementation
+////////////////////////////////////////////////////////////////////////////////
+
+Procedure TNonTransitConnection.SetUserClassImpedance(const [ref] UserClass: TUserClass);
+begin
+  if FCost = 0.0 then
+    FImpedance := FTime
+  else
+    FImpedance := FTime + FCost/UserClass.ValueOfTime;
+end;
+
 ////////////////////////////////////////////////////////////////////////////////
 
 Procedure TTransitConnection.SetUserClassImpedance(const [ref] UserClass: TUserClass);
@@ -209,7 +231,9 @@ end;
 ////////////////////////////////////////////////////////////////////////////////
 
 Constructor TNetwork.Create(const TransitNetwork: TTransitNetwork;
-                            const NonTransitNetwork: TNonTransitNetwork);
+                            const NonTransitLevelOfService: TNonTransitLevelOfService);
+Var
+  Time,Distance,Cost: Float64;
 begin
   inherited Create;
   // Initialize nodes
@@ -228,9 +252,9 @@ begin
       var FromNode := TransitLine[FromStop];
       if (FromNode >= NZones) and (FromNode < NNodes) then
       begin
-        var Time := 0.0;
-        var Distance := 0.0;
-        var Cost := 0.0;
+        Time := 0.0;
+        Distance := 0.0;
+        Cost := 0.0;
         FNodes[FromNode].FLines := FNodes[FromNode].FLines + [TransitLine];
         for var ToStop := FromStop+1 to TransitLine.NStops-1 do
         begin
@@ -286,12 +310,39 @@ begin
   // Read non-transit level of service
   for var FromNode := 0 to NNodes-1 do
   begin
-    NonTransitNetwork.ProceedToNextOrigin;
+    NonTransitLevelOfService.ProceedToNextOrigin;
     for var ToNode := 0 to NNodes-1 do
+    if (FromNode <> ToNode) and NonTransitLevelOfService.LevelOfService(ToNode,Time,Distance,Cost) then
+    if ToNode < NZones then
     begin
-      var Connection := NonTransitNetwork.Connection(ToNode);
-      if Connection <> nil then FNodes[ToNode].RouteSection(FromNode).AddConnection(Connection);
-    end;
+      var EgressConnection := TNonTransitConnection.Create;
+      SetLength(EgressConnection.FMixedVolumes,NUserClasses);
+      EgressConnection.FConnectionType := ctEgress;
+      EgressConnection.FFromNode := FromNode;
+      EgressConnection.FToNode := ToNode;
+      EgressConnection.FTime := Time;
+      EgressConnection.FDistance := Distance;
+      EgressConnection.FCost := Cost;
+      FNodes[ToNode].RouteSection(FromNode).AddConnection(EgressConnection);
+    end else
+    begin
+      for var Line := low(FNodes[ToNode].FLines) to high(FNodes[ToNode].FLines) do
+      begin
+        var AccessConnection := TNonTransitConnection.Create;
+        SetLength(AccessConnection.FMixedVolumes,NUserClasses);
+        if FromNode < NZones then
+          AccessConnection.FConnectionType := ctAccess
+        else
+          AccessConnection.FConnectionType := ctTransfer;
+        AccessConnection.FFromNode := FromNode;
+        AccessConnection.FToNode := ToNode;
+        AccessConnection.FLine := FNodes[ToNode].FLines[Line];
+        AccessConnection.FTime := Time;
+        AccessConnection.FDistance := Distance;
+        AccessConnection.FCost := Cost;
+        FNodes[ToNode].RouteSection(FromNode).AddConnection(AccessConnection);
+      end;
+    end
   end;
 end;
 
@@ -331,6 +382,62 @@ begin
   for var RouteSection in Node.FRouteSections do
   for var Connection in RouteSection.FConnections do
   Connection.PushVolumesToLine;
+end;
+
+Procedure TNetwork.SaveAccessTable(const FileName: String);
+Var
+  Volumes: TAcessVolumes;
+  AccessVolumes: array {zone} of array of TAcessVolumes;
+begin
+  SetLength(AccessVolumes,NZones);
+  // Get access volumes
+  for var Node in FNodes do
+  for var RouteSection in Node.FRouteSections do
+  for var Connection in RouteSection.FConnections do
+  if Connection.ConnectionType = ctAccess then
+  begin
+    var Zone := Connection.FromNode;
+    Volumes.Line := Connection.Line.Line;
+    Volumes.Node := Connection.ToNode;
+    SetLength(Volumes.Access,NUserClasses);
+    for var UserClass := 0 to NUserClasses-1 do
+    Volumes.Access[UserClass] := Connection.Volumes[UserClass];
+    AccessVolumes[Zone] := AccessVolumes[Zone] + [Volumes];
+    Volumes.Access := nil;
+  end;
+  // Write table
+  var Writer := TStreamWriter.Create(FileName);
+  try
+    // Write header
+    Writer.Write(ZoneFieldName);
+    Writer.Write(#9);
+    Writer.Write(NodeFieldName);
+    Writer.Write(#9);
+    Writer.Write(LineFieldName);
+    Writer.Write(#9);
+    Writer.Write(UserClassFieldName);
+    Writer.Write(#9);
+    Writer.Write(AccessFieldName);
+    Writer.WriteLine;
+    // Write data
+    for var Zone := 0 to NZones-1 do
+    for var AccessVolume := low(AccessVolumes[Zone]) to high(AccessVolumes[Zone]) do
+    for var UserClass := 0 to NUserClasses-1 do
+    begin
+      Writer.Write(Zone+1);
+      Writer.Write(#9);
+      Writer.Write(AccessVolumes[Zone,AccessVolume].Node+1);
+      Writer.Write(#9);
+      Writer.Write(AccessVolumes[Zone,AccessVolume].Line+1);
+      Writer.Write(#9);
+      Writer.Write(UserClass+1);
+      Writer.Write(#9);
+      Writer.Write(FormatFloat('0.##',AccessVolumes[Zone,AccessVolume].Access[UserClass]));
+      Writer.WriteLine;
+    end;
+  finally
+    Writer.Free;
+  end;
 end;
 
 Destructor TNetwork.Destroy;

@@ -1,0 +1,45 @@
+LINE	REVERSE	HEADWAY	SPEED	DWELLTIME	PENALTY	NAME
+1	2	10	415	0.5	5	HTM Tramlijn 1, richting Delft
+2	1	10	415	0.5	5	HTM Tramlijn 1, richting Scheveningen
+3	4	6	415	0.5	5	HTM Tramlijn 2, richting Leidschendam
+4	3	6	415	0.5	5	HTM Tramlijn 2, richting Kraayenstein
+5	6	10	415	0.5	5	HTM Tramlijn 3, richting Zoetermeer
+6	5	10	415	0.5	5	HTM Tramlijn 3, richting Loosduinen
+7	8	10	415	0.5	5	HTM Tramlijn 4, richting Zoetermeer
+8	7	10	415	0.5	5	HTM Tramlijn 4, richting Uithof
+9	10	10	415	0.5	5	HTM Tramlijn 6, richting Leidschendam
+10	9	10	415	0.5	5	HTM Tramlijn 6, richting Leyenburg
+11	12	7.5	415	0.5	5	HTM Tramlijn 9, richting Vrederust
+12	11	7.5	415	0.5	5	HTM Tramlijn 9, richting Scheveningen
+13	14	15	415	0.5	5	HTM Tramlijn 11, richting Holland Spoor
+14	13	15	415	0.5	5	HTM Tramlijn 11, richting Scheveningen
+15	16	15	415	0.5	5	HTM Tramlijn 12, richting Holland Spoor
+16	15	15	415	0.5	5	HTM Tramlijn 12, richting Duindorp
+17	18	12	415	0.5	5	HTM Tramlijn 15, richting Noordorp
+18	17	12	415	0.5	5	HTM Tramlijn 15, richting Centraal Stations
+19	20	10	415	0.5	5	HTM Tramlijn 16, richting Wateringen
+20	19	10	415	0.5	5	HTM Tramlijn 16, richting Statenkwartier
+21	22	12	415	0.5	5	HTM Tramlijn 17, richting Wateringen
+22	21	12	415	0.5	5	HTM Tramlijn 17, richting Centraal Station
+23	24	20	415	0.5	5	HTM Tramlijn 19, richting Delft
+24	23	20	415	0.5	5	HTM Tramlijn 19, richting Leidschendam
+25	26	10	415	0.5	5	HTM Tramlijn 34, richting Zoetermeer
+26	25	10	415	0.5	5	HTM Tramlijn 34, richting Savornin Lohmanplein
+27	0	15	415	0.5	5	HTM Buslijn 20, richting Duinzigt
+28	0	15	415	0.5	5	HTM Buslijn 20, richting Centraal Station
+29	30	12	415	0.5	5	HTM Buslijn 21, richting Vrederust
+30	29	12	415	0.5	5	HTM Buslijn 21, richting Scheveningen
+31	0	20	415	0.5	5	HTM Buslijn 22, richting De Schilp
+32	0	20	415	0.5	5	HTM Buslijn 22, richting Duindorp
+33	0	10	415	0.5	5	HTM Buslijn 23, richting Colijnplein
+34	0	10	415	0.5	5	HTM Buslijn 23, richting Scheveningen
+35	0	10	415	0.5	5	HTM Buslijn 24, richting Mariahoeve
+36	0	10	415	0.5	5	HTM Buslijn 24, richting Kijkduin
+37	38	12	415	0.5	5	HTM Buslijn 25, richting Vrederust
+38	37	12	415	0.5	5	HTM Buslijn 25, richting Grote Markt
+39	40	15	415	0.5	5	HTM Buslijn 26, richting Voorburg
+40	39	15	415	0.5	5	HTM Buslijn 26, richting Kijkduin
+41	0	15	515	0.5	5	HTM Buslijn 28, richting Voorburg
+42	0	15	515	0.5	5	HTM Buslijn 28, richting Zuiderstrand
+43	0	0	515	0.5	5	HTM Buslijn 29, richting Station Rijswijk
+44	0	0	515	0.5	5	HTM Buslijn 29, richting Oude Waalsdorperweg

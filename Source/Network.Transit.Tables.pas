@@ -12,7 +12,7 @@ Type
 
   TReversibleLine = Class(TTransitLine)
   private
-    Line,ReverseLine: Integer;
+    ReverseLine: Integer;
     Speed,DwellTime: Float64;
     Procedure AllocateStops;
     Procedure AllocateSegments;
@@ -39,28 +39,6 @@ Type
     Procedure SaveStopsTable(const FileName: String);
     Procedure SaveSegmentsTable(const FileName: String);
   end;
-
-Const
-  LineFieldName = 'LINE';
-  ReverseFieldName = 'REVERSE';
-  CircularFieldName = 'CIRCULAR';
-  HeadwayFieldName = 'HEADWAY';
-  SpeedFieldName = 'SPEED';
-  DwellTimeFieldName = 'DWELLTIME';
-  CapacityFieldName = 'CAPACITY';
-  SeatsFieldName = 'SEATS';
-  PenaltyFieldName = 'PENALTY';
-  StopFieldName = 'STOP';
-  NodeFieldName = 'NODE';
-  SegmentFieldName = 'SEGMENT';
-  TimeFieldName = 'TIME';
-  DistanceFieldName = 'DIST';
-  CostFieldName = 'COST';
-  UserClassFieldName = 'USERCLASS';
-  BoardingsFieldName = 'BOARD';
-  AlightingsFieldName = 'ALIGHT';
-  VolumeFieldName = 'VOLUME';
-  NameFieldName = 'NAME';
 
 ////////////////////////////////////////////////////////////////////////////////
 implementation
@@ -234,7 +212,7 @@ begin
       begin
         if Length(FLines) <= FNLines then SetLength(FLines,FNLines+64);
         FLines[FNLines] := TReversibleLine.Create;
-        FLines[FNLines].Line := FNLines;
+        FLines[FNLines].FLine := FNLines;
         FLines[FNLines].FHeadway := Reader[HeadwayFieldIndex];
         if SpeedFieldIndex >= 0 then FLines[FNLines].Speed := Reader[SpeedFieldIndex];
         if DwellTimeFieldIndex >= 0 then FLines[FNLines].DwellTime := Reader[DwellTimeFieldIndex];
