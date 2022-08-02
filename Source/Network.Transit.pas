@@ -33,7 +33,7 @@ Type
     Function Convergence: Float64;
   protected
     FName: string;
-    FLine,FNStops,FNSegments: Integer;
+    FNStops,FNSegments: Integer;
     FCircular: Boolean;
     FHeadway,FBoardingPenalty,FSeats,FCapacity: Float64;
     FStopNodes: TArray<Integer>;
@@ -46,7 +46,6 @@ Type
     Function Overloaded(Stop: Integer): Boolean;
   public
     Property Name: String read Fname;
-    Property Line: Integer read FLine;
     Property NStops: Integer read FNStops;
     Property NSegments: Integer read FNSegments;
     Property Circular: Boolean read FCircular;

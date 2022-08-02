@@ -92,7 +92,7 @@ NODE	XCOORD	YCOORD	NAME
 91	86814	453868	Forepark
 92	87303	453292	Leidschenveen
 93	92156	453002	Voorweg
-94	93004	452759	Centrum-West?
+94	93004	452759	Centrum-West 
 95	93663	452799	Stadhuis
 96	94574	452635	Palenstein
 97	95196	453011	Seghwaert
@@ -135,7 +135,7 @@ NODE	XCOORD	YCOORD	NAME
 134	85197	456010	Station Mariahoeve
 135	86581	456646	Burg. Kolfschotenlaan
 136	86994	456972	Kastelenring
-137	87358	457230	Dillenburgsingel?
+137	87358	457230	Dillenburgsingel 
 138	79430	458482	Circustheater
 139	79756	458155	Nieuwe Duinweg
 140	80308	457495	Wagenaarweg
@@ -382,7 +382,7 @@ NODE	XCOORD	YCOORD	NAME
 381	80601	455903	Alexanderplein
 382	82537	455405	Prins Clauslaan
 383	82728	455546	Koningin Marialaan
-384	82924	455680	Laan van Nieuw Oost Indi?
+384	82924	455680	Laan van Nieuw Oost Indië
 385	83213	455890	Spaarwaterstraat
 386	83505	456077	De Eerensplein
 387	83724	456242	Overbosch
@@ -424,8 +424,3 @@ NODE	XCOORD	YCOORD	NAME
 423	79236	456647	World Forum
 424	82493	454456	Weteringkade
 425	82759	454214	Poolsterstraat
-426	82076	458299	Oude Waalsdorperweg
-427	81805	457967	Waalsdorperweg
-428	82124	456713	Van Hoytemastraat
-429	81843	456551	Jozef Israelsplein
-430	81915	454592	Bierkade

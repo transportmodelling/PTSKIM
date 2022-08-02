@@ -15,7 +15,12 @@ Uses
   Classes,SysUtils,Types,ArrayHlp,PropSet,Parse,matio,matio.Formats,Globals,UserClass,Connection;
 
 Type
-  TNonTransitLevelOfService = Class
+  TNonTransitConnection = Class(TConnection)
+  public
+    Procedure SetUserClassImpedance(const [ref] UserClass: TUserClass); override;
+  end;
+
+  TNonTransitNetwork = Class
   private
     FromNode: Integer;
     MaxAccessDist,MaxTransferDist,MaxEgressDist: Float64;
@@ -35,14 +40,24 @@ Type
     Procedure Initialize(const NodesFileName: String; const DetourFactor,Speed: Float64); overload;
     Procedure Initialize(const [ref] LevelOfService: TPropertySet); overload;
     Procedure ProceedToNextOrigin;
-    Function LevelOfService(const ToNode: Integer; out Time,Distance,Cost: Float64): Boolean;
+    Function Connection(const ToNode: Integer): TNonTransitConnection;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
 implementation
 ////////////////////////////////////////////////////////////////////////////////
 
-Constructor TNonTransitLevelOfService.Create(MaxAccessDistance,MaxTransferDistance,MaxEgressDistance: Float64;
+Procedure TNonTransitConnection.SetUserClassImpedance(const [ref] UserClass: TUserClass);
+begin
+  if FCost = 0.0 then
+    FImpedance := FTime
+  else
+    FImpedance := FTime + FCost/UserClass.ValueOfTime;
+end;
+
+////////////////////////////////////////////////////////////////////////////////
+
+Constructor TNonTransitNetwork.Create(MaxAccessDistance,MaxTransferDistance,MaxEgressDistance: Float64;
                                       UseAsTheCrowFliesAccessEgressDistances,UseAsTheCrowFliesTransferDistances: Boolean);
 begin
   inherited Create;
@@ -54,7 +69,7 @@ begin
   AsTheCrowFliesTransferDistances := UseAsTheCrowFliesTransferDistances;
 end;
 
-Function TNonTransitLevelOfService.GetLevelOfService(const ToNode: Integer; out Time,Distance,Cost: Float64): Boolean;
+Function TNonTransitNetwork.GetLevelOfService(const ToNode: Integer; out Time,Distance,Cost: Float64): Boolean;
 begin
   Result := false;
   if (((FromNode < NZones) or (ToNode < NZones)) and AsTheCrowFliesAccessEgressDistances)
@@ -82,17 +97,17 @@ begin
   end;
 end;
 
-Function TNonTransitLevelOfService.UsesLevelOfService: Boolean;
+Function TNonTransitNetwork.UsesLevelOfService: Boolean;
 begin
   Result := (not AsTheCrowFliesAccessEgressDistances) or (not AsTheCrowFliesTransferDistances);
 end;
 
-Function TNonTransitLevelOfService.UsesAsTheCrowFliesDistances: Boolean;
+Function TNonTransitNetwork.UsesAsTheCrowFliesDistances: Boolean;
 begin
   Result := AsTheCrowFliesAccessEgressDistances or AsTheCrowFliesTransferDistances;
 end;
 
-Procedure TNonTransitLevelOfService.Initialize(const NodesFileName: String; const DetourFactor,Speed: Float64);
+Procedure TNonTransitNetwork.Initialize(const NodesFileName: String; const DetourFactor,Speed: Float64);
 begin
   DistanceFactor := DetourFactor;
   TimeFactor := DetourFactor/Speed;
@@ -122,7 +137,7 @@ begin
   end;
 end;
 
-Procedure TNonTransitLevelOfService.Initialize(const [ref] LevelOfService: TPropertySet);
+Procedure TNonTransitNetwork.Initialize(const [ref] LevelOfService: TPropertySet);
 begin
   if LevelOfService.Count > 0 then
   begin
@@ -134,35 +149,52 @@ begin
   end;
 end;
 
-Procedure TNonTransitLevelOfService.ProceedToNextOrigin;
+Procedure TNonTransitNetwork.ProceedToNextOrigin;
 begin
   Inc(FromNode);
   if LevelOfServiceReader <> nil then LevelOfServiceReader.Read([Times,Distances,Costs]);
 end;
 
-Function TNonTransitLevelOfService.LevelOfService(const ToNode: Integer; out Time,Distance,Cost: Float64): Boolean;
+Function TNonTransitNetwork.Connection(const ToNode: Integer): TNonTransitConnection;
+Var
+  Time,Distance,Cost: Float64;
 begin
-  Result := false;
+  Result := nil;
   if ((FromNode >= NZones) or (ToNode >= NZones)) and (FromNode <> ToNode) then
   begin
     if GetLevelOfService(ToNode,Time,Distance,Cost) then
     if FromNode < NZones then
     begin
-      if Distance < MaxAccessDist then Result := true
+      if Distance < MaxAccessDist then
+      begin
+        Result := TNonTransitConnection.Create;
+        Result.FConnectionType := ctAccess;
+      end
     end else
     if ToNode < NZones then
     begin
       if Distance < MaxEgressDist then
       begin
-        Result := true;
+        Result := TNonTransitConnection.Create;
+        Result.FConnectionType := ctEgress;
       end
     end else
     begin
       if Distance < MaxTransferDist then
       begin
-        Result := true;
+        Result := TNonTransitConnection.Create;
+        Result.FConnectionType := ctTransfer;
       end
     end;
+    if Result <> nil then
+    begin
+      SetLength(Result.FMixedVolumes,NUserClasses);
+      Result.FFromNode := FromNode;
+      Result.FToNode := ToNode;
+      Result.FTime := Time;
+      Result.FDistance := Distance;
+      Result.FCost := Cost;
+    end
   end;
 end;
 
