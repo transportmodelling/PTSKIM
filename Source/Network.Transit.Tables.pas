@@ -40,28 +40,6 @@ Type
     Procedure SaveSegmentsTable(const FileName: String);
   end;
 
-Const
-  LineFieldName = 'LINE';
-  ReverseFieldName = 'REVERSE';
-  CircularFieldName = 'CIRCULAR';
-  HeadwayFieldName = 'HEADWAY';
-  SpeedFieldName = 'SPEED';
-  DwellTimeFieldName = 'DWELLTIME';
-  CapacityFieldName = 'CAPACITY';
-  SeatsFieldName = 'SEATS';
-  PenaltyFieldName = 'PENALTY';
-  StopFieldName = 'STOP';
-  NodeFieldName = 'NODE';
-  SegmentFieldName = 'SEGMENT';
-  TimeFieldName = 'TIME';
-  DistanceFieldName = 'DIST';
-  CostFieldName = 'COST';
-  UserClassFieldName = 'USERCLASS';
-  BoardingsFieldName = 'BOARD';
-  AlightingsFieldName = 'ALIGHT';
-  VolumeFieldName = 'VOLUME';
-  NameFieldName = 'NAME';
-
 ////////////////////////////////////////////////////////////////////////////////
 implementation
 ////////////////////////////////////////////////////////////////////////////////

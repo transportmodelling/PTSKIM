@@ -39,7 +39,8 @@ uses
   LineChoi.Gentile in 'LineChoi.Gentile.pas',
   Crowding in 'Crowding.pas',
   Crowding.WardmanWhelan in 'Crowding.WardmanWhelan.pas',
-  Network.Transit.Tables in 'Network.Transit.Tables.pas';
+  Network.Transit.Tables in 'Network.Transit.Tables.pas',
+  Network.Coord in 'Network.Coord.pas';
 
 Type
   TPTSkim = Class
@@ -50,8 +51,10 @@ Type
 Procedure TPTSkim.Execute(ControlFileName: String);
 Var
   ControlFile: TPropertySet;
+  ZoneCoordinates,StopCoordinates: string;
   SpeedTimeDist: TSpeedTimeDist;
-  UserClasses: array of TuserClass;
+  UserClasses: array of TUserClass;
+  Coordinates: TCoordinates;
   NonTransitNetwork: TNonTransitNetwork;
   TransitNetwork: TTransitNetworkTables;
   Network: TNetwork;
@@ -68,6 +71,7 @@ Var
   SkimRows: array of TFloat64MatrixRow;
   SkimWriter: TMatrixWriter;
 begin
+  Coordinates := nil;
   NonTransitNetwork := nil;
   TransitNetwork := nil;
   Network := nil;
@@ -85,8 +89,33 @@ begin
         LogFile.Log('Control file',ControlFileName);
       end;
       // Set parameters
-      NZones := ControlFile.ToInt('NZONES',0);
-      NNodes := ControlFile.ToInt('NNODES');
+      var Offset := ControlFile.ToInt('OFFSET',0);
+      if ControlFile.Contains('ZONES',ZoneCoordinates) then
+      begin
+        ZoneCoordinates := ControlFile.BaseDirectory.AbsolutePath(ZoneCoordinates);
+        if ControlFile.Contains('NODES',StopCoordinates) then
+        begin
+          StopCoordinates := ControlFile.BaseDirectory.AbsolutePath(StopCoordinates);
+          Coordinates := TCoordinates.Create(ZoneCoordinates,StopCoordinates,Offset);
+          NZones := Coordinates.ZoneCount;
+          NNodes := Coordinates.Count;
+        end else
+        begin
+          Coordinates := TCoordinates.Create(ZoneCoordinates);
+          NZones := Coordinates.ZoneCount;
+          NNodes := ControlFile.ToInt('NNODES');
+        end;
+      end else
+      begin
+        NZones := ControlFile.ToInt('NZONES',0);
+        if ControlFile.Contains('NODES',StopCoordinates) then
+        begin
+          StopCoordinates := ControlFile.BaseDirectory.AbsolutePath(StopCoordinates);
+          Coordinates := TCoordinates.Create(StopCoordinates,NZones,Offset);
+          NNodes := Coordinates.Count;
+        end else
+          NNodes := ControlFile.ToInt('NNODES');
+      end;
       NUserClasses := ControlFile.ToInt('NCLASS');
       if (NZones >= 0) and (NNodes > NZones) then
       begin
@@ -153,9 +182,9 @@ begin
         begin
           SetLength(SkimData,NUserClasses);
           if NZones = 0 then
-            NSkim := NNodes // Stop to stop assignment
+            NSkim := NNodes // Stop to stop skim
           else
-            NSkim := NZones // Zone to zone assignment
+            NSkim := NZones // Zone to zone skim
         end else
           NSkim := 0;
         // Create non-transit network
@@ -166,7 +195,7 @@ begin
                                                        ControlFile.ToBool('TRFCROW','0','1',false));
         if NonTransitNetwork.UsesLevelOfService then NonTransitNetwork.Initialize(ControlFile['LOS']);
         if NonTransitNetwork.UsesAsTheCrowFliesDistances then
-          NonTransitNetwork.Initialize(ControlFile.ToFileName('COORD',true),
+          NonTransitNetwork.Initialize(ControlFile.ToFileName('NODES',true),
                                        ControlFile.ToFloat('DETOUR',1.0),
                                        CONTROLFile.ToFloat('SPEED'));
         // Set speed-time-distance input mode
@@ -177,7 +206,6 @@ begin
         if SameText(TableMode,'DS') then SpeedTimeDist := stdDistSpeed else
         raise Exception.Create('Invalid STD-value');
         // Create network
-        var Offset := ControlFile.ToInt('OFFSET',0);
         var LinesFileName := ControlFile.ToPath('LINES');
         var StopsFileName := ControlFile.ToPath('STOPS');
         var SegmentsFileName := ControlFile.ToPath('SEGMENTS');
@@ -186,6 +214,7 @@ begin
         // Determine number of iterations
         var Converged := ControlFile.ToFloat('CONV',1E-6);
         var MaxIter := ControlFile.ToInt('LOAD',0);
+        var LoadNetwork := (MaxIter > 0);
         var FirstImpedanceIter := 0;
         if MaxIter < 256 then
         begin
@@ -202,7 +231,8 @@ begin
                 if FirstImpedanceIter <= 0 then raise Exception.Create('Invalid IMPSKM-value');
               end;
             end;
-          end else if NSkimVar > 0 then MaxIter := 1 else MaxIter := 0;
+          end else
+            if NSkimVar > 0 then MaxIter := 1;
         end else
           raise Exception.Create('Invalid LOAD-value');
         // Prepare for parallel execution
@@ -225,7 +255,7 @@ begin
             if (Iter = 1) and (NSkimVar > 0) then SetLength(SkimData[UserClass],NSkim,NSkimVar,NSkim);
             var UserClassSkimData := SkimData[UserClass];
             // Read volumes
-            if MaxIter > 0 then
+            if LoadNetwork then
             begin
               // Read from file
               var TripsLabel := ControlFile['TRIPS'+(UserClass+1).ToString];
@@ -258,7 +288,7 @@ begin
                       if (FirstImpedanceIter > 0) and (Iter >= FirstImpedanceIter) then
                       PathBuilders[Thread].UpdateRoutesCountCount(ImpedanceCount[Destination]);
                     end;
-                    PathBuilders[Thread].Assign(Volumes[Destination]);
+                    if LoadNetwork then PathBuilders[Thread].Assign(Volumes[Destination]);
                   end;
                   if NSkimVar > 0 then
                   if FirstImpedanceIter = 0 then
@@ -289,7 +319,7 @@ begin
                     end
                end);
             // Copy volumes to network
-            if MaxIter > 0 then
+            if LoadNetwork then
             begin
               var MixFactor := 1/Iter;
               for var Thread := 0 to NThreads-1 do PathBuilders[Thread].PushVolumesToNetwork;
@@ -375,6 +405,7 @@ begin
     NonTransitNetwork.Free;
     TransitNetwork.Free;
     Network.Free;
+    Coordinates.Free;
   end
 end;
 

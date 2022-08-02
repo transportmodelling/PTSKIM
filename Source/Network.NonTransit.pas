@@ -116,6 +116,7 @@ begin
   var Reader := TStreamReader.Create(NodesFileName,TEncoding.ANSI);
   try
     var Parser := TStringParser.Create(Space);
+    Reader.ReadLine; // Skip header
     while not Reader.EndOfStream do
     begin
       Inc(NNodes);
