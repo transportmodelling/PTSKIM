@@ -388,18 +388,20 @@ begin
         var NetworkConnection := RouteSection.Connections[Connection];
         var FromNode := Nodes[NetworkConnection.FromNode];
         if NetworkConnection.ConnectionType = ctTransit then
-        begin
-          var SkimConnection := TPathConnection.Create;
-          Inc(NConnections);
-          if Length(PathNode.Connections) < NConnections then SetLength(PathNode.Connections,NConnections+256);
-          SkimConnection.FFromNode := FromNode;
-          SkimConnection.FToNode := Nodes[NetworkConnection.ToNode];
-          SkimConnection.FConnection := NetworkConnection;
-          SkimConnection.FromNodeOption := FromNode.LineIndex(NetworkConnection.Line);
-          PathNode.Connections[NConnections-1] := SkimConnection;
-        end;
+         begin
+           var SkimConnection := TPathConnection.Create;
+           Inc(NConnections);
+           if Length(PathNode.Connections) < NConnections then SetLength(PathNode.Connections,NConnections+256);
+           SkimConnection.FFromNode := FromNode;
+           SkimConnection.FToNode := Nodes[NetworkConnection.ToNode];
+           SkimConnection.FConnection := NetworkConnection;
+           SkimConnection.FromNodeOption := FromNode.LineIndex(NetworkConnection.Line);
+           PathNode.Connections[NConnections-1] := SkimConnection;
+         end;
         if NetworkConnection.ConnectionType in [ctAccess,ctTransfer] then
+        for var Line := 0 to NetworkNode.NLines-1 do
         begin
+          var TransitLine := NetworkNode.Lines[Line];
           var SkimConnection := TAccessPathConnection.Create;
           var BoardingNode := Nodes[NetworkConnection.ToNode];
           Inc(NConnections);
@@ -407,8 +409,8 @@ begin
           SkimConnection.FFromNode := FromNode;
           SkimConnection.FBoardingNode := BoardingNode;
           SkimConnection.FConnection := NetworkConnection;
-          SkimConnection.FromNodeOption := FromNode.LineIndex(NetworkConnection.Line);
-          SkimConnection.BoardingNodeOption := BoardingNode.LineIndex(NetworkConnection.Line);
+          SkimConnection.FromNodeOption := FromNode.LineIndex(TransitLine);
+          SkimConnection.BoardingNodeOption := BoardingNode.LineIndex(TransitLine);
           PathNode.Connections[NConnections-1] := SkimConnection;
         end;
         if NetworkConnection.ConnectionType in [ctTransfer,ctEgress] then

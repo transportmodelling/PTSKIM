@@ -40,4 +40,3 @@ LINE	REVERSE	HEADWAY	SPEED	DWELLTIME	PENALTY	NAME
 39	40	15	415	0.5	5	HTM Buslijn 26, richting Voorburg
 40	39	15	415	0.5	5	HTM Buslijn 26, richting Kijkduin
 41	0	15	515	0.5	5	HTM Buslijn 28, richting Voorburg
-42	0	15	515	0.5	5	HTM Buslijn 28, richting Zuiderstrand

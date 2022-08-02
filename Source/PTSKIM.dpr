@@ -52,7 +52,7 @@ Var
   ControlFile: TPropertySet;
   SpeedTimeDist: TSpeedTimeDist;
   UserClasses: array of TuserClass;
-  NonTransitLevelOfService: TNonTransitLevelOfService;
+  NonTransitNetwork: TNonTransitNetwork;
   TransitNetwork: TTransitNetworkTables;
   Network: TNetwork;
   PathBuilders: array of TPathBuilder;
@@ -68,7 +68,7 @@ Var
   SkimRows: array of TFloat64MatrixRow;
   SkimWriter: TMatrixWriter;
 begin
-  NonTransitLevelOfService := nil;
+  NonTransitNetwork := nil;
   TransitNetwork := nil;
   Network := nil;
   DestinationsLoop := nil;
@@ -159,16 +159,16 @@ begin
         end else
           NSkim := 0;
         // Create non-transit network
-        NonTransitLevelOfService := TNonTransitLevelOfService.Create(ControlFile.ToFloat('ACCDST',Infinity),
-                                                                     ControlFile.ToFloat('TRFDST',Infinity),
-                                                                     ControlFile.ToFloat('EGRDST',Infinity),
-                                                                     ControlFile.ToBool('AECROW','0','1',false),
-                                                                     ControlFile.ToBool('TRFCROW','0','1',false));
-        if NonTransitLevelOfService.UsesLevelOfService then NonTransitLevelOfService.Initialize(ControlFile['LOS']);
-        if NonTransitLevelOfService.UsesAsTheCrowFliesDistances then
-          NonTransitLevelOfService.Initialize(ControlFile.ToFileName('COORD',true),
-                                              ControlFile.ToFloat('DETOUR',1.0),
-                                              ControlFile.ToFloat('SPEED'));
+        NonTransitNetwork := TNonTransitNetwork.Create(ControlFile.ToFloat('ACCDST',Infinity),
+                                                       ControlFile.ToFloat('TRFDST',Infinity),
+                                                       ControlFile.ToFloat('EGRDST',Infinity),
+                                                       ControlFile.ToBool('AECROW','0','1',false),
+                                                       ControlFile.ToBool('TRFCROW','0','1',false));
+        if NonTransitNetwork.UsesLevelOfService then NonTransitNetwork.Initialize(ControlFile['LOS']);
+        if NonTransitNetwork.UsesAsTheCrowFliesDistances then
+          NonTransitNetwork.Initialize(ControlFile.ToFileName('COORD',true),
+                                       ControlFile.ToFloat('DETOUR',1.0),
+                                       CONTROLFile.ToFloat('SPEED'));
         // Set speed-time-distance input mode
         var TableMode := ControlFile['STD'];
         if SameText(TableMode,'T') then SpeedTimeDist := stdTime else
@@ -182,7 +182,7 @@ begin
         var StopsFileName := ControlFile.ToPath('STOPS');
         var SegmentsFileName := ControlFile.ToPath('SEGMENTS');
         TransitNetwork := TTransitNetworkTables.Create(SpeedTimeDist,LinesFileName,StopsFileName,SegmentsFileName,Offset);
-        Network := TNetwork.Create(TransitNetwork,NonTransitLevelOfService);
+        Network := TNetwork.Create(TransitNetwork,NonTransitNetwork);
         // Determine number of iterations
         var Converged := ControlFile.ToFloat('CONV',1E-6);
         var MaxIter := ControlFile.ToInt('LOAD',0);
@@ -351,11 +351,6 @@ begin
         // Save output tables
         if MaxIter > 0 then
         begin
-          if NZones > 0 then
-          begin
-            var AccessFileName := ControlFile.ToFileName('ACCESS',false);
-            if AccessFileName <> '' then Network.SaveAccessTable(AccessFileName);
-          end;
           var BoardingsFileName := ControlFile.ToFileName('BOARDS',false);
           if BoardingsFileName <> '' then TransitNetwork.SaveStopsTable(BoardingsFileName);
           var VolumesFileName := ControlFile.ToFileName('VOLUMES',false);
@@ -377,7 +372,7 @@ begin
     for var Thread := low(PathBuilders) to high(PathBuilders) do PathBuilders[Thread].Free;
     DestinationsLoop.Free;
     LogFile.Free;
-    NonTransitLevelOfService.Free;
+    NonTransitNetwork.Free;
     TransitNetwork.Free;
     Network.Free;
   end
