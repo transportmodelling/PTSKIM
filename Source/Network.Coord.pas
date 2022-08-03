@@ -72,7 +72,10 @@ end;
 
 Function TCoordinates.GetCoordinates(Node: Integer): TPointF;
 begin
-  Result := FCoordinates[Node];
+  if Node >= Offset then
+    Result := FCoordinates[Node-Offset]
+  else
+    raise Exception.Create('Coordinate not available');
 end;
 
 Procedure TCoordinates.ReadCoordinates(const FileName: String; StopOffset: Integer);
@@ -96,6 +99,7 @@ begin
       end else
         raise Exception.Create('Error reading coordinates "' + FileName + '" at line ' + Reader.LineCount.ToString)
     end;
+    SetLength(FCoordinates,FCount-Offset);
   finally
     Reader.Free;
   end;
