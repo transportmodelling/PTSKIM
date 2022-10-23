@@ -26,7 +26,7 @@ uses
   Polynom,
   Spline,
   PFL,
-  Log,
+  Ctl, Log,
   Globals in 'Globals.pas',
   UserClass in 'UserClass.pas',
   Connection in 'Connection.pas',
@@ -45,13 +45,11 @@ uses
 Type
   TPTSkim = Class
   public
-    Procedure Execute(ControlFileName: String);
+    Procedure Execute;
   end;
 
-Procedure TPTSkim.Execute(ControlFileName: String);
+Procedure TPTSkim.Execute;
 Var
-  ControlFile: TPropertySet;
-  ZoneCoordinates,StopCoordinates: string;
   SpeedTimeDist: TSpeedTimeDist;
   UserClasses: array of TUserClass;
   Coordinates: TCoordinates;
@@ -71,366 +69,344 @@ Var
   SkimRows: array of TFloat64MatrixRow;
   SkimWriter: TMatrixWriter;
 begin
-  Coordinates := nil;
-  NonTransitNetwork := nil;
-  TransitNetwork := nil;
-  Network := nil;
-  DestinationsLoop := nil;
-  try
-    try
-      ControlFile.NameValueSeparator := ':';
-      ControlFile.PropertiesSeparator := ';';
-      ControlFile.AsStrings := TFile.ReadAllLines(ControlFileName);
-      // Create log file
-      var LogFileName := ControlFile.ToFileName('LOG',false);
-      if LogFileName <> '' then
-      begin
-        LogFile := TLogFile.Create(LogFileName);
-        LogFile.Log('Control file',ControlFileName);
-      end;
-      // Set parameters
-      var Offset := ControlFile.ToInt('OFFSET',0);
-      if ControlFile.Contains('ZONES',ZoneCoordinates) then
-      begin
-        ZoneCoordinates := ControlFile.BaseDirectory.AbsolutePath(ZoneCoordinates);
-        if ControlFile.Contains('NODES',StopCoordinates) then
-        begin
-          StopCoordinates := ControlFile.BaseDirectory.AbsolutePath(StopCoordinates);
-          Coordinates := TCoordinates.Create(ZoneCoordinates,StopCoordinates,Offset);
-          NZones := Coordinates.ZoneCount;
-          NNodes := Coordinates.Count;
-        end else
-        begin
-          Coordinates := TCoordinates.Create(ZoneCoordinates);
-          NZones := Coordinates.ZoneCount;
-          NNodes := ControlFile.ToInt('NNODES');
-        end;
-      end else
-      begin
-        NZones := ControlFile.ToInt('NZONES',0);
-        if ControlFile.Contains('NODES',StopCoordinates) then
-        begin
-          StopCoordinates := ControlFile.BaseDirectory.AbsolutePath(StopCoordinates);
-          Coordinates := TCoordinates.Create(StopCoordinates,NZones,Offset);
-          NNodes := Coordinates.Count;
-        end else
-          NNodes := ControlFile.ToInt('NNODES');
-      end;
-      NUserClasses := ControlFile.ToInt('NCLASS');
-      if (NZones >= 0) and (NNodes > NZones) then
-      begin
-        // Set userclasses
-        SetLength(UserClasses,NUserClasses);
-        var Crowding := false;
-        var VOT := ControlFile.Parse('VOT',Comma).ToFloatArray;
-        var BoardingPenalty := ControlFile.Parse('PENALTY',Comma).ToFloatArray;
-        var CrowdingModel := ControlFile.Parse('CROWD',Comma).ToIntArray;
-        for var UserClass := 0 to NUserClasses-1 do
-        begin
-          UserClasses[UserClass].UserClass := UserClass;
-          if Length(BoardingPenalty) = 0 then
-            UserClasses[UserClass].BoardingPenalty := 0.0
-          else
-            UserClasses[UserClass].BoardingPenalty := BoardingPenalty[UserClass];
-          if Length(VOT) = 0 then
-            UserClasses[UserClass].ValueOfTime := 0.0
-          else
-            UserClasses[UserClass].ValueOfTime := VOT[UserClass];
-          if Length(CrowdingModel) = 0 then
-            UserClasses[UserClass].CrowdingModel := nil
-          else
-            case CrowdingModel[UserClass] of
-              0: UserClasses[UserClass].CrowdingModel := nil;
-              1: begin
-                   Crowding := true;
-                   UserClasses[UserClass].CrowdingModel := TWardmanWhelanCrowdingModel.Create(ppCommuting);
-                 end;
-              2: begin
-                   Crowding := true;
-                   UserClasses[UserClass].CrowdingModel := TWardmanWhelanCrowdingModel.Create(ppOther);
-                 end
-              else raise Exception.Create('Invalid crowding model');
-            end
-        end;
-        // Set skim-variables
-        var ImpedanceSkim := -1;
-        if ControlFile.Contains('SKIM',SkimVar) then
-        begin
-          SkimVariables := TStringParser.Create(Comma,SkimVar).ToStrArray;
-          if Length(SkimVariables) > 0 then
+  if ParamCount > 0 then
+  begin
+    var ControlFileName := ParamStr(1);
+    if CtlFile.Read(ControlFileName) then
+    begin
+      Coordinates := nil;
+      NonTransitNetwork := nil;
+      TransitNetwork := nil;
+      Network := nil;
+      DestinationsLoop := nil;
+      try
+        try
+          // Open log file
+          LogFile := TLogFile.Create(CtlFile.ToFileName('LOG'),false);
+          LogFile.Log('Ctl-file',ExpandFileName(ControlFileName));
+          LogFile.Log;
+          // Init headers text matrices
+          TTextMatrixWriter.RowLabel := 'Orig';
+          TTextMatrixWriter.ColumnLabel := 'Dest';
+          // Set parameters
+          var Offset := CtlFile.ToInt('OFFSET',0);
+          if CtlFile.Contains('ZONES') then
           begin
-            for var Skim := low(SkimVariables) to high(SkimVariables) do
-            if SameText(SkimVariables[Skim],'IMP') then
+            if CtlFile.Contains('NODES') then
             begin
-              ImpedanceSkim := Skim;
-              SkimVars := SkimVars + [TImpedanceSkim.Create];
+              Coordinates := TCoordinates.Create(CtlFile.InpFileName('ZONES'),CtlFile.InpFileName('NODES'),Offset);
+              NZones := Coordinates.ZoneCount;
+              NNodes := Coordinates.Count;
             end else
-            if SameText(SkimVariables[Skim],'IWAIT') then SkimVars := SkimVars + [TInitialWaitTimeSkim.Create] else
-            if SameText(SkimVariables[Skim],'WAIT') then SkimVars := SkimVars + [TWaitTimeSkim.Create] else
-            if SameText(SkimVariables[Skim],'BRD') then SkimVars := SkimVars + [TBoardingsSkim.Create] else
-            if SameText(SkimVariables[Skim],'TIM') then SkimVars := SkimVars + [TTimeSkim.Create] else
-            if SameText(SkimVariables[Skim],'IVT') then SkimVars := SkimVars + [TInVehicleTimeSkim.Create] else
-            if SameText(SkimVariables[Skim],'DST') then SkimVars := SkimVars + [TDistanceSkim.Create] else
-            if SameText(SkimVariables[Skim],'IVD') then SkimVars := SkimVars + [TInvehicleDistanceSkim.Create] else
-            if SameText(SkimVariables[Skim],'CST') then SkimVars := SkimVars + [TCostSkim.Create] else
-              raise Exception.Create('Unknown skim variable ' + SkimVariables[Skim]);
-          end;
-        end;
-        // Set skim range
-        var NSkimVar := Length(SkimVars);
-        if NSkimVar > 0 then
-        begin
-          SetLength(SkimData,NUserClasses);
-          if NZones = 0 then
-            NSkim := NNodes // Stop to stop skim
-          else
-            NSkim := NZones // Zone to zone skim
-        end else
-          NSkim := 0;
-        // Create non-transit network
-        NonTransitNetwork := TNonTransitNetwork.Create(ControlFile.ToFloat('ACCDST',Infinity),
-                                                       ControlFile.ToFloat('TRFDST',Infinity),
-                                                       ControlFile.ToFloat('EGRDST',Infinity),
-                                                       ControlFile.ToBool('AECROW','0','1',false),
-                                                       ControlFile.ToBool('TRFCROW','0','1',false));
-        if NonTransitNetwork.UsesLevelOfService then NonTransitNetwork.Initialize(ControlFile['LOS']);
-        if NonTransitNetwork.UsesAsTheCrowFliesDistances then
-          NonTransitNetwork.Initialize(ControlFile.ToFileName('NODES',true),
-                                       ControlFile.ToFloat('DETOUR',1.0),
-                                       CONTROLFile.ToFloat('SPEED'));
-        // Set speed-time-distance input mode
-        var TableMode := ControlFile['STD'];
-        if SameText(TableMode,'T') then SpeedTimeDist := stdTime else
-        if SameText(TableMode,'TD') then SpeedTimeDist := stdTimeDist else
-        if SameText(TableMode,'TS') then SpeedTimeDist := stdTimeSpeed else
-        if SameText(TableMode,'DS') then SpeedTimeDist := stdDistSpeed else
-        raise Exception.Create('Invalid STD-value');
-        // Create network
-        var LinesFileName := ControlFile.ToPath('LINES');
-        var StopsFileName := ControlFile.ToPath('STOPS');
-        var SegmentsFileName := ControlFile.ToPath('SEGMENTS');
-        TransitNetwork := TTransitNetworkTables.Create(SpeedTimeDist,LinesFileName,StopsFileName,SegmentsFileName,Offset);
-        Network := TNetwork.Create(TransitNetwork,NonTransitNetwork);
-        // Determine number of iterations
-        var Converged := ControlFile.ToFloat('CONV',1E-6);
-        var MaxIter := ControlFile.ToInt('LOAD',0);
-        var LoadNetwork := (MaxIter > 0);
-        var FirstImpedanceIter := 0;
-        if MaxIter < 256 then
-        begin
-          if MaxIter > 0 then
-          begin
-            SetLength(Volumes,NSkim,NSkim);
-            if MaxIter > 1 then
             begin
-              SetLength(RoutesCount,NSkim,NSkim);
-              if (ImpedanceSkim >= 0) and Crowding then
-              begin
-                SetLength(ImpedanceCount,NSkim,NSkim);
-                FirstImpedanceIter := MaxIter-ControlFile.ToInt('IMPSKM')+1;
-                if FirstImpedanceIter <= 0 then raise Exception.Create('Invalid IMPSKM-value');
-              end;
+              Coordinates := TCoordinates.Create(CtlFile.InpFileName('ZONES'));
+              NZones := Coordinates.ZoneCount;
+              NNodes := CtlFile.ToInt('NNODES');
             end;
           end else
-            if NSkimVar > 0 then MaxIter := 1;
-        end else
-          raise Exception.Create('Invalid LOAD-value');
-        // Prepare for parallel execution
-        NThreads := ControlFile.ToInt('NTHREADS',0);
-        if NThreads <= 0 then NThreads := TThread.ProcessorCount-NThreads;
-        if NThreads < 1 then NThreads := 1;
-        SetLength(PathBuilders,NThreads);
-        for var Thread := 0 to NThreads-1 do PathBuilders[Thread] := TPathBuilder.Create(Network);
-        DestinationsLoop := TParallelFor.Create;
-        // Load & Skim network
-        var Iter := 0;
-        var Convergence := Infinity;
-        while (Iter < MaxIter) and (Convergence > Converged) do
-        begin
-          Inc(Iter);
-          for var UserClass := 0 to NUserClasses-1 do
           begin
-            Network.Initialize(UserClasses[UserClass]);
-            // Allocate skim data
-            if (Iter = 1) and (NSkimVar > 0) then SetLength(SkimData[UserClass],NSkim,NSkimVar,NSkim);
-            var UserClassSkimData := SkimData[UserClass];
-            // Read volumes
-            if LoadNetwork then
+            NZones := CtlFile.ToInt('NZONES',0);
+            if CtlFile.Contains('NODES') then
             begin
-              // Read from file
-              var TripsLabel := ControlFile['TRIPS'+(UserClass+1).ToString];
-              VolumesReader := MatrixFormats.CreateReader(TripsLabel);
-              try
-                for var Node := 0 to NSkim-1 do VolumesReader.Read(Volumes[Node]);
-              finally
-                VolumesReader.Free;
-              end;
-              // Transpose volumes
-              for var Origin := 0 to NSkim-1 do
-              for var Destination := Origin+1 to NSkim-1do
+              Coordinates := TCoordinates.Create(CtlFile.InpFileName('NODES'),NZones,Offset);
+              NNodes := Coordinates.Count;
+            end else
+              NNodes := CtlFile.ToInt('NNODES');
+          end;
+          NUserClasses := CtlFile.ToInt('NCLASS');
+          if (NZones >= 0) and (NNodes > NZones) then
+          begin
+            // Set userclasses
+            SetLength(UserClasses,NUserClasses);
+            var Crowding := false;
+            var VOT := CtlFile.Parse('VOT',Comma).ToFloatArray;
+            var BoardingPenalty := CtlFile.Parse('PENALTY',Comma).ToFloatArray;
+            var CrowdingModel := CtlFile.Parse('CROWD',Comma).ToIntArray;
+            for var UserClass := 0 to NUserClasses-1 do
+            begin
+              UserClasses[UserClass].UserClass := UserClass;
+              if Length(BoardingPenalty) = 0 then
+                UserClasses[UserClass].BoardingPenalty := 0.0
+              else
+                UserClasses[UserClass].BoardingPenalty := BoardingPenalty[UserClass];
+              if Length(VOT) = 0 then
+                UserClasses[UserClass].ValueOfTime := 0.0
+              else
+                UserClasses[UserClass].ValueOfTime := VOT[UserClass];
+              if Length(CrowdingModel) = 0 then
+                UserClasses[UserClass].CrowdingModel := nil
+              else
+                case CrowdingModel[UserClass] of
+                  0: UserClasses[UserClass].CrowdingModel := nil;
+                  1: begin
+                       Crowding := true;
+                       UserClasses[UserClass].CrowdingModel := TWardmanWhelanCrowdingModel.Create(ppCommuting);
+                     end;
+                  2: begin
+                       Crowding := true;
+                       UserClasses[UserClass].CrowdingModel := TWardmanWhelanCrowdingModel.Create(ppOther);
+                     end
+                  else raise Exception.Create('Invalid crowding model');
+                end
+            end;
+            // Set skim-variables
+            var ImpedanceSkim := -1;
+            if CtlFile.Contains('SKIM',SkimVar) then
+            begin
+              SkimVariables := TStringParser.Create(Comma,SkimVar).ToStrArray;
+              if Length(SkimVariables) > 0 then
               begin
-                var XChange := Volumes[Origin,Destination];
-                Volumes[Origin,Destination] := Volumes[Destination,Origin];
-                Volumes[Destination,Origin] := XChange;
+                for var Skim := low(SkimVariables) to high(SkimVariables) do
+                if SameText(SkimVariables[Skim],'IMP') then
+                begin
+                  ImpedanceSkim := Skim;
+                  SkimVars := SkimVars + [TImpedanceSkim.Create];
+                end else
+                if SameText(SkimVariables[Skim],'IWAIT') then SkimVars := SkimVars + [TInitialWaitTimeSkim.Create] else
+                if SameText(SkimVariables[Skim],'WAIT') then SkimVars := SkimVars + [TWaitTimeSkim.Create] else
+                if SameText(SkimVariables[Skim],'BRD') then SkimVars := SkimVars + [TBoardingsSkim.Create] else
+                if SameText(SkimVariables[Skim],'TIM') then SkimVars := SkimVars + [TTimeSkim.Create] else
+                if SameText(SkimVariables[Skim],'IVT') then SkimVars := SkimVars + [TInVehicleTimeSkim.Create] else
+                if SameText(SkimVariables[Skim],'DST') then SkimVars := SkimVars + [TDistanceSkim.Create] else
+                if SameText(SkimVariables[Skim],'IVD') then SkimVars := SkimVars + [TInvehicleDistanceSkim.Create] else
+                if SameText(SkimVariables[Skim],'CST') then SkimVars := SkimVars + [TCostSkim.Create] else
+                  raise Exception.Create('Unknown skim variable ' + SkimVariables[Skim]);
               end;
             end;
-            // Iterate destinations
-            DestinationsLoop.Execute(NThreads,0,NSkim-1,
-               Procedure(Destination,Thread: Integer)
-               begin
-                  PathBuilders[Thread].BuildPaths(Destination);
-                  PathBuilders[Thread].TopologicalSort;
-                  if MaxIter > 0 then
-                  begin
-                    if (UserClass = 0) and (MaxIter > 1) then
-                    begin
-                      PathBuilders[Thread].UpdateRoutesCountCount(RoutesCount[Destination]);
-                      if (FirstImpedanceIter > 0) and (Iter >= FirstImpedanceIter) then
-                      PathBuilders[Thread].UpdateRoutesCountCount(ImpedanceCount[Destination]);
-                    end;
-                    if LoadNetwork then PathBuilders[Thread].Assign(Volumes[Destination]);
-                  end;
-                  if NSkimVar > 0 then
-                  if FirstImpedanceIter = 0 then
-                    for var SkimVar := low(SkimVars) to high(SkimVars) do
-                    begin
-                      if Iter = 1 then
-                        PathBuilders[Thread].Skim(NSkim-1,SkimVars[SkimVar],UserClassSkimData[Destination,SkimVar])
-                      else
-                        PathBuilders[Thread].Skim(NSkim-1,RoutesCount[Destination],SkimVars[SkimVar],UserClassSkimData[Destination,SkimVar])
-                    end
-                  else
-                    for var SkimVar := low(SkimVars) to high(SkimVars) do
-                    begin
-                      if SkimVar = ImpedanceSkim then
-                      begin
-                        if Iter = FirstImpedanceIter then
-                          PathBuilders[Thread].Skim(NSkim-1,SkimVars[SkimVar],UserClassSkimData[Destination,SkimVar])
-                        else
-                          if Iter > FirstImpedanceIter then
-                          PathBuilders[Thread].Skim(NSkim-1,ImpedanceCount[Destination],SkimVars[SkimVar],UserClassSkimData[Destination,SkimVar])
-                      end else
-                      begin
-                        if Iter = 1 then
-                          PathBuilders[Thread].Skim(NSkim-1,SkimVars[SkimVar],UserClassSkimData[Destination,SkimVar])
-                        else
-                          PathBuilders[Thread].Skim(NSkim-1,RoutesCount[Destination],SkimVars[SkimVar],UserClassSkimData[Destination,SkimVar])
-                      end;
-                    end
-               end);
-            // Copy volumes to network
-            if LoadNetwork then
+            // Set skim range
+            var NSkimVar := Length(SkimVars);
+            if NSkimVar > 0 then
             begin
-              var MixFactor := 1/Iter;
-              for var Thread := 0 to NThreads-1 do PathBuilders[Thread].PushVolumesToNetwork;
-              Network.MixVolumes(UserClass,MixFactor);
-            end;
-            // Write skim data
-            if (NSkimVar > 0) and ((Iter = MaxIter) or (Convergence <= Converged)) then
+              SetLength(SkimData,NUserClasses);
+              if NZones = 0 then
+                NSkim := NNodes // Stop to stop skim
+              else
+                NSkim := NZones // Zone to zone skim
+            end else
+              NSkim := 0;
+            // Create non-transit network
+            NonTransitNetwork := TNonTransitNetwork.Create;
+            if NonTransitNetwork.UsesLevelOfService then NonTransitNetwork.Initialize(CtlFile.InpProperties('LOS',true));
+            if NonTransitNetwork.UsesAsTheCrowFliesDistances then
+              NonTransitNetwork.Initialize(Coordinates,
+                                           CtlFile.ToFloat('DETOUR',1.0),
+                                           CtlFile.ToFloat('SPEED'));
+            // Set speed-time-distance input mode
+            // Create network
+            TransitNetwork := TTransitNetworkTables.Create(Offset);
+            Network := TNetwork.Create(TransitNetwork,NonTransitNetwork);
+            // Determine number of iterations
+            var Converged := CtlFile.ToFloat('CONV',1E-6);
+            var MaxIter := CtlFile.ToInt('LOAD',0);
+            var LoadNetwork := (MaxIter > 0);
+            var FirstImpedanceIter := 0;
+            if MaxIter < 256 then
             begin
-              SkimRows := nil;
-              SkimWriter := nil;
-              var SkimLabel := 'SKIM'+(UserClass+1).ToString;
-              try
-                if ControlFile.ToBool('TRNSP','0','1',false) then
+              if MaxIter > 0 then
+              begin
+                SetLength(Volumes,NSkim,NSkim);
+                if MaxIter > 1 then
                 begin
-                  SetLength(SkimVariables,2*NSkimVar);
-                  SetLength(SkimRows,2*NSkimVar);
-                  for var Skim := 0 to NSkimVar-1 do
+                  SetLength(RoutesCount,NSkim,NSkim);
+                  if (ImpedanceSkim >= 0) and Crowding then
                   begin
-                    SkimVariables[Skim+NSkimVar] := SkimVariables[Skim] + '_tr';
-                    SkimRows[Skim].Length := NSkim;
-                  end;
-                  SkimWriter := MatrixFormats.CreateWriter(ControlFile[SkimLabel],SkimLabel,SkimVariables,NSkim);
-                  for var Origin := 0 to NSkim-1 do
-                  begin
-                    for var Skim := 0 to NSkimVar-1 do
-                    begin
-                      SkimRows[NSkimVar+Skim] := UserClassSkimData[Origin][Skim];
-                      for var Destination := 0 to NSkim-1 do
-                      SkimRows[Skim,Destination] := UserClassSkimData[Destination][Skim,Origin];
-                    end;
-                    SkimWriter.Write(SkimRows);
-                  end;
-                end else
-                begin
-                  SetLength(SkimRows,NSkimVar,NSkim);
-                  SkimWriter := MatrixFormats.CreateWriter(ControlFile[SkimLabel],SkimLabel,SkimVariables,NSkim);
-                  for var Origin := 0 to NSkim-1 do
-                  begin
-                    for var Skim := 0 to NSkimVar-1 do
-                    for var Destination := 0 to NSkim-1 do
-                    SkimRows[Skim,Destination] := UserClassSkimData[Destination][Skim,Origin];
-                    SkimWriter.Write(SkimRows);
+                    SetLength(ImpedanceCount,NSkim,NSkim);
+                    FirstImpedanceIter := MaxIter-CtlFile.ToInt('IMPSKM')+1;
+                    if FirstImpedanceIter <= 0 then raise Exception.Create('Invalid IMPSKM-value');
                   end;
                 end;
-              finally
-                SkimWriter.Free;
-                Finalize(SkimData[UserClass]);
+              end else
+                if NSkimVar > 0 then MaxIter := 1;
+            end else
+              raise Exception.Create('Invalid LOAD-value');
+            // Prepare for parallel execution
+            NThreads := CtlFile.ToInt('NTHREADS',0);
+            if NThreads <= 0 then NThreads := TThread.ProcessorCount-NThreads;
+            if NThreads < 1 then NThreads := 1;
+            SetLength(PathBuilders,NThreads);
+            for var Thread := 0 to NThreads-1 do PathBuilders[Thread] := TPathBuilder.Create(Network);
+            DestinationsLoop := TParallelFor.Create;
+            // Load & Skim network
+            var Iter := 0;
+            var Convergence := Infinity;
+            while (Iter < MaxIter) and (Convergence > Converged) do
+            begin
+              Inc(Iter);
+              for var UserClass := 0 to NUserClasses-1 do
+              begin
+                Network.Initialize(UserClasses[UserClass]);
+                // Allocate skim data
+                if (Iter = 1) and (NSkimVar > 0) then SetLength(SkimData[UserClass],NSkim,NSkimVar,NSkim);
+                var UserClassSkimData := SkimData[UserClass];
+                // Read volumes
+                if LoadNetwork then
+                begin
+                  // Read from file
+                  var TripsLabel := 'TRIPS'+(UserClass+1).ToString;
+                  if Iter = 1 then
+                    VolumesReader := MatrixFormats.CreateReader(CtlFile.InpProperties(TripsLabel))
+                  else
+                    // Log input file only once
+                    VolumesReader := MatrixFormats.CreateReader(CtlFile[TripsLabel]);
+                  try
+                    for var Node := 0 to NSkim-1 do VolumesReader.Read(Volumes[Node]);
+                  finally
+                    VolumesReader.Free;
+                  end;
+                  // Transpose volumes
+                  for var Origin := 0 to NSkim-1 do
+                  for var Destination := Origin+1 to NSkim-1do
+                  begin
+                    var XChange := Volumes[Origin,Destination];
+                    Volumes[Origin,Destination] := Volumes[Destination,Origin];
+                    Volumes[Destination,Origin] := XChange;
+                  end;
+                end;
+                // Iterate destinations
+                DestinationsLoop.Execute(NThreads,0,NSkim-1,
+                   Procedure(Destination,Thread: Integer)
+                   begin
+                      PathBuilders[Thread].BuildPaths(Destination);
+                      PathBuilders[Thread].TopologicalSort;
+                      if MaxIter > 0 then
+                      begin
+                        if (UserClass = 0) and (MaxIter > 1) then
+                        begin
+                          PathBuilders[Thread].UpdateRoutesCountCount(RoutesCount[Destination]);
+                          if (FirstImpedanceIter > 0) and (Iter >= FirstImpedanceIter) then
+                          PathBuilders[Thread].UpdateRoutesCountCount(ImpedanceCount[Destination]);
+                        end;
+                        if LoadNetwork then PathBuilders[Thread].Assign(Volumes[Destination]);
+                      end;
+                      if NSkimVar > 0 then
+                      if FirstImpedanceIter = 0 then
+                        for var SkimVar := low(SkimVars) to high(SkimVars) do
+                        begin
+                          if Iter = 1 then
+                            PathBuilders[Thread].Skim(NSkim-1,SkimVars[SkimVar],UserClassSkimData[Destination,SkimVar])
+                          else
+                            PathBuilders[Thread].Skim(NSkim-1,RoutesCount[Destination],SkimVars[SkimVar],UserClassSkimData[Destination,SkimVar])
+                        end
+                      else
+                        for var SkimVar := low(SkimVars) to high(SkimVars) do
+                        begin
+                          if SkimVar = ImpedanceSkim then
+                          begin
+                            if Iter = FirstImpedanceIter then
+                              PathBuilders[Thread].Skim(NSkim-1,SkimVars[SkimVar],UserClassSkimData[Destination,SkimVar])
+                            else
+                              if Iter > FirstImpedanceIter then
+                              PathBuilders[Thread].Skim(NSkim-1,ImpedanceCount[Destination],SkimVars[SkimVar],UserClassSkimData[Destination,SkimVar])
+                          end else
+                          begin
+                            if Iter = 1 then
+                              PathBuilders[Thread].Skim(NSkim-1,SkimVars[SkimVar],UserClassSkimData[Destination,SkimVar])
+                            else
+                              PathBuilders[Thread].Skim(NSkim-1,RoutesCount[Destination],SkimVars[SkimVar],UserClassSkimData[Destination,SkimVar])
+                          end;
+                        end
+                   end);
+                // Copy volumes to network
+                if LoadNetwork then
+                begin
+                  var MixFactor := 1/Iter;
+                  for var Thread := 0 to NThreads-1 do PathBuilders[Thread].PushVolumesToNetwork;
+                  Network.MixVolumes(UserClass,MixFactor);
+                end;
+                // Write skim data
+                if (NSkimVar > 0) and ((Iter = MaxIter) or (Convergence <= Converged)) then
+                begin
+                  SkimRows := nil;
+                  SkimWriter := nil;
+                  var SkimLabel := 'SKIM'+(UserClass+1).ToString;
+                  try
+                    if CtlFile.ToBool('TRNSP','0','1',false) then
+                    begin
+                      SetLength(SkimVariables,2*NSkimVar);
+                      SetLength(SkimRows,2*NSkimVar);
+                      for var Skim := 0 to NSkimVar-1 do
+                      begin
+                        SkimVariables[Skim+NSkimVar] := SkimVariables[Skim] + '_tr';
+                        SkimRows[Skim].Length := NSkim;
+                      end;
+                      SkimWriter := MatrixFormats.CreateWriter(CtlFile.OutpProperties(SkimLabel),SkimLabel,SkimVariables,NSkim);
+                      for var Origin := 0 to NSkim-1 do
+                      begin
+                        for var Skim := 0 to NSkimVar-1 do
+                        begin
+                          SkimRows[NSkimVar+Skim] := UserClassSkimData[Origin][Skim];
+                          for var Destination := 0 to NSkim-1 do
+                          SkimRows[Skim,Destination] := UserClassSkimData[Destination][Skim,Origin];
+                        end;
+                        SkimWriter.Write(SkimRows);
+                      end;
+                    end else
+                    begin
+                      SetLength(SkimRows,NSkimVar,NSkim);
+                      SkimWriter := MatrixFormats.CreateWriter(CtlFile.OutpProperties(SkimLabel),SkimLabel,SkimVariables,NSkim);
+                      for var Origin := 0 to NSkim-1 do
+                      begin
+                        for var Skim := 0 to NSkimVar-1 do
+                        for var Destination := 0 to NSkim-1 do
+                        SkimRows[Skim,Destination] := UserClassSkimData[Destination][Skim,Origin];
+                        SkimWriter.Write(SkimRows);
+                      end;
+                    end;
+                  finally
+                    SkimWriter.Free;
+                    Finalize(SkimData[UserClass]);
+                  end;
+                end;
               end;
+              // Load transit lines
+              TransitNetwork.ResetVolumes;
+              Network.PushVolumesToLines;
+              // Calculate convergence
+              Convergence := TransitNetwork.Convergence;
+              if (LogFile <> nil) and (MaxIter > 1) then
+              LogFile.Log('Convergence iteration ' + Iter.ToString + ': ' + FormatFloat('0.0000',Convergence));
             end;
+            // Save output tables
+            if LoadNetwork then
+            begin
+              TransitNetwork.SaveBoardingsTable;
+              TransitNetwork.SaveVolumesTable;
+            end;
+          end else
+            raise Exception.Create('Invalid value NNodes or NZones');
+        except
+          on E: Exception do
+          begin
+            ExitCode := 1;
+            if LogFile <> nil then
+            begin
+              LogFile.Log;
+              Logfile.Log(E)
+            end else
+              writeln('ERROR: ' + E.Message);
           end;
-          // Load transit lines
-          TransitNetwork.ResetVolumes;
-          Network.PushVolumesToLines;
-          // Calculate convergence
-          Convergence := TransitNetwork.Convergence;
-          if (LogFile <> nil) and (MaxIter > 1) then
-          LogFile.Log('Convergence iteration ' + Iter.ToString + ': ' + FormatFloat('0.0000',Convergence));
         end;
-        // Save output tables
-        if MaxIter > 0 then
-        begin
-          var BoardingsFileName := ControlFile.ToFileName('BOARDS',false);
-          if BoardingsFileName <> '' then TransitNetwork.SaveStopsTable(BoardingsFileName);
-          var VolumesFileName := ControlFile.ToFileName('VOLUMES',false);
-          if VolumesFileName <> '' then TransitNetwork.SaveSegmentsTable(VolumesFileName);
-        end;
-      end else
-        raise Exception.Create('Invalid value NNodes or NZones');
-    except
-      on E: Exception do
-      begin
-        ExitCode := 1;
-        if LogFile <> nil then
-          LogFile.Log(E)
-        else
-          writeln(E.Message);
+      finally
+        for var Thread := low(PathBuilders) to high(PathBuilders) do PathBuilders[Thread].Free;
+        DestinationsLoop.Free;
+        Coordinates.Free;
+        NonTransitNetwork.Free;
+        TransitNetwork.Free;
+        Network.Free;
+        LogFile.Free;
       end;
-    end;
-  finally
-    for var Thread := low(PathBuilders) to high(PathBuilders) do PathBuilders[Thread].Free;
-    DestinationsLoop.Free;
-    LogFile.Free;
-    NonTransitNetwork.Free;
-    TransitNetwork.Free;
-    Network.Free;
-    Coordinates.Free;
-  end
+    end
+  end else
+    writeln('Usage: ',ExtractFileName(ParamStr(0)),' "<control-file-name>"');
 end;
 
 ////////////////////////////////////////////////////////////////////////////////
 
 begin
-  if ParamCount > 0 then
-  begin
-    var ControlFileName := ExpandFileName(ParamStr(1));
-    if FileExists(ControlFileName) then
-    begin
-      var BaseDir := IncludeTrailingPathDelimiter(ExtractFileDir(ControlFileName));
-      FormatSettings.DecimalSeparator := '.';
-      // All relative paths are supposed to be relative to the control file path!
-      TPropertySet.BaseDirectory := BaseDir;
-      TTextMatrixWriter.RowLabel := 'Orig';
-      TTextMatrixWriter.ColumnLabel := 'Dest';
-      var Skim := TPTSkim.Create;
-      try
-        Skim.Execute(ControlFileName);
-      finally
-        Skim.Free;
-      end
-    end else
-      writeln('Control file does not exist');
-  end else
-    writeln('Usage PTSKIM <control file>');
+  var Skim := TPTSkim.Create;
+  try
+    Skim.Execute;
+  finally
+    Skim.Free;
+  end
 end.

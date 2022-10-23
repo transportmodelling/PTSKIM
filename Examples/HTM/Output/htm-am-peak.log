@@ -1,5 +1,16 @@
-START 2-8-2022 20:55:53
-Executable: PTSKIM.exe; 2-8-2022 20:49:51
-Computer: PC-LVV171
-Control file: htm-am-peak.ctl; 2-8-2022 20:50:20
-STOP 2-8-2022 20:56:01
+START 10/23/2022 10:21:04 PM
+Executable: PTSKIM.exe; 10/23/2022 10:20:38 PM; 2212352 bytes
+Computer: PC04-SIG
+Ctl-file: F:\Repos\PTSKIM\Examples\htm\htm-am-peak.ctl; 10/23/2022 5:41:25 PM; 319 bytes
+
+
+Input files:
+NODES: F:\...\Examples\htm\input\nodes.dat; 10/23/2022 5:41:25 PM; 14060 bytes
+LINES: F:\...\Examples\htm\input\lines-am-peak.dat; 10/23/2022 5:41:25 PM; 2539 bytes
+STOPS: F:\...\Examples\htm\input\stops.dat; 10/23/2022 5:41:25 PM; 8567 bytes
+SEGMENTS: F:\...\Examples\htm\input\segments.dat; 10/23/2022 5:41:25 PM; 8556 bytes
+
+Output files:
+SKIM1: F:\...\Examples\htm\output\htm-am-peak-skim.dat; 10/23/2022 10:21:10 PM; 8703537 bytes
+
+STOP 10/23/2022 10:21:10 PM

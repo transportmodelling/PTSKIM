@@ -1,7 +1,8 @@
-START 31-12-2021 16:19:27
-Executable: PTSKIM.exe; 31-12-2021 16:13:23
-Computer: PC-LVV171
-Control file: Crowding.ctl; 31-12-2021 15:35:06
+START 10/23/2022 10:21:04 PM
+Executable: PTSKIM.exe; 10/23/2022 10:20:38 PM; 2212352 bytes
+Computer: PC04-SIG
+Ctl-file: F:\Repos\PTSKIM\Examples\Crowding\Crowding.ctl; 10/23/2022 5:41:25 PM; 512 bytes
+
 Convergence iteration 1: 279.1667
 Convergence iteration 2: 181.2500
 Convergence iteration 3: 60.4167
@@ -102,4 +103,18 @@ Convergence iteration 97: 0.2624
 Convergence iteration 98: 0.2647
 Convergence iteration 99: 0.2572
 Convergence iteration 100: 0.2590
-STOP 31-12-2021 16:19:28
+
+Input files:
+LINES: F:\...\Examples\Crowding\input\lines.dat; 10/23/2022 5:41:25 PM; 95 bytes
+STOPS: F:\...\Examples\Crowding\input\stops.dat; 10/23/2022 5:41:25 PM; 65 bytes
+SEGMENTS: F:\...\Examples\Crowding\input\segments.dat; 10/23/2022 5:41:25 PM; 51 bytes
+TRIPS1: F:\...\Examples\Crowding\input\trips1.dat; 10/23/2022 5:41:25 PM; 34 bytes
+TRIPS2: F:\...\Examples\Crowding\input\trips2.dat; 10/23/2022 5:41:25 PM; 34 bytes
+
+Output files:
+SKIM1: F:\...\Examples\Crowding\output\Crowding-skim1.dat; 10/23/2022 10:21:04 PM; 159 bytes
+SKIM2: F:\...\Examples\Crowding\output\Crowding-skim2.dat; 10/23/2022 10:21:04 PM; 161 bytes
+BOARDS: F:\...\Examples\Crowding\output\boardings.dat; 10/23/2022 10:21:04 PM; 218 bytes
+VOLUMES: F:\...\Examples\Crowding\output\volumes.dat; 10/23/2022 10:21:04 PM; 122 bytes
+
+STOP 10/23/2022 10:21:04 PM

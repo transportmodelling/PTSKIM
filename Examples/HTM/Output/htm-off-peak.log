@@ -1,5 +1,16 @@
-START 2-8-2022 20:56:01
-Executable: PTSKIM.exe; 2-8-2022 20:49:51
-Computer: PC-LVV171
-Control file: htm-off-peak.ctl; 2-8-2022 20:50:31
-STOP 2-8-2022 20:56:08
+START 10/23/2022 10:21:10 PM
+Executable: PTSKIM.exe; 10/23/2022 10:20:38 PM; 2212352 bytes
+Computer: PC04-SIG
+Ctl-file: F:\Repos\PTSKIM\Examples\htm\htm-off-peak.ctl; 10/23/2022 5:41:25 PM; 322 bytes
+
+
+Input files:
+NODES: F:\...\Examples\htm\input\nodes.dat; 10/23/2022 5:41:25 PM; 14060 bytes
+LINES: F:\...\Examples\htm\input\lines-off-peak.dat; 10/23/2022 5:41:25 PM; 2538 bytes
+STOPS: F:\...\Examples\htm\input\stops.dat; 10/23/2022 5:41:25 PM; 8567 bytes
+SEGMENTS: F:\...\Examples\htm\input\segments.dat; 10/23/2022 5:41:25 PM; 8556 bytes
+
+Output files:
+SKIM1: F:\...\Examples\htm\output\htm-off-peak-skim.dat; 10/23/2022 10:21:16 PM; 8667346 bytes
+
+STOP 10/23/2022 10:21:16 PM

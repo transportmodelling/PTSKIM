@@ -1,11 +1,18 @@
 unit Network.Transit.Tables;
 
 ////////////////////////////////////////////////////////////////////////////////
+//
+// Author: Jaap Baak
+// https://github.com/transportmodelling/PTSKIM
+//
+////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////
 interface
 ////////////////////////////////////////////////////////////////////////////////
 
 Uses
-  SysUtils,Classes,Math,FloatHlp,ArrayHlp,Parse,TxtTab,Globals,Network.Transit;
+  SysUtils, Classes, Math, FloatHlp, ArrayHlp, Parse, TxtTab, Ctl, Globals, Network.Transit;
 
 Type
   TSpeedTimeDist = (stdTime,stdTimeDist,stdTimeSpeed,stdDistSpeed);
@@ -25,19 +32,15 @@ Type
   TTransitNetworkTables = Class(TTransitNetwork)
   private
     FLines: array of TReversibleLine;
-    Procedure ReadLinesTable(const SpeedTimeDist: TSpeedTimeDist;
-                        const FileName: String);
-    Procedure ReadStopsTable(const FileName: String; const Offset: Integer);
-    Procedure ReadSegmentsTable(const SpeedTimeDist: TSpeedTimeDist;
-                           const FileName: String);
+    Procedure ReadLinesTable(const SpeedTimeDist: TSpeedTimeDist);
+    Procedure ReadStopsTable(Offset: Integer);
+    Procedure ReadSegmentsTable(const SpeedTimeDist: TSpeedTimeDist);
   strict protected
     Function GetLines(Line: Integer): TTransitLine; override;
   public
-    Constructor Create(const SpeedTimeDist: TSpeedTimeDist;
-                       const LinesFileName,StopsFileName,SegmentsFileName: string;
-                       const Offset: Integer);
-    Procedure SaveStopsTable(const FileName: String);
-    Procedure SaveSegmentsTable(const FileName: String);
+    Constructor Create(Offset: Integer);
+    Procedure SaveBoardingsTable;
+    Procedure SaveVolumesTable;
   end;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -147,14 +150,22 @@ end;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Constructor TTransitNetworkTables.Create(const SpeedTimeDist: TSpeedTimeDist;
-                                         const LinesFileName,StopsFileName,SegmentsFileName: string;
-                                         const Offset: Integer);
+Constructor TTransitNetworkTables.Create(Offset: Integer);
+Var
+  SpeedTimeDist: TSpeedTimeDist;
 begin
   inherited Create;
-  ReadLinesTable(SpeedTimeDist,LinesFileName);
-  ReadStopsTable(StopsFileName,Offset);
-  ReadSegmentsTable(SpeedTimeDist,SegmentsFileName);
+  // Set speed-time-distance input mode
+  var TableMode := CtlFile['STD'];
+  if SameText(TableMode,'T') then SpeedTimeDist := stdTime else
+  if SameText(TableMode,'TD') then SpeedTimeDist := stdTimeDist else
+  if SameText(TableMode,'TS') then SpeedTimeDist := stdTimeSpeed else
+  if SameText(TableMode,'DS') then SpeedTimeDist := stdDistSpeed else
+  raise Exception.Create('Invalid STD-value');
+  // Create network
+  ReadLinesTable(SpeedTimeDist);
+  ReadStopsTable(Offset);
+  ReadSegmentsTable(SpeedTimeDist);
   // Initialize reverse lines
   for var Line := 0 to FNLines-1 do
   begin
@@ -187,10 +198,9 @@ begin
   Result := FLines[Line];
 end;
 
-Procedure TTransitNetworkTables.ReadLinesTable(const SpeedTimeDist: TSpeedTimeDist;
-                                               const FileName: String);
+Procedure TTransitNetworkTables.ReadLinesTable(const SpeedTimeDist: TSpeedTimeDist);
 begin
-  var Reader := TTextTableReader.Create(FileName);
+  var Reader := TTextTableReader.Create(CtlFile.InpFileName('LINES'));
   try
     // Set field indices
     var LineFieldIndex := Reader.IndexOf(LineFieldName,true);
@@ -255,9 +265,9 @@ begin
   end;
 end;
 
-Procedure TTransitNetworkTables.ReadStopsTable(const FileName: String; const Offset: Integer);
+Procedure TTransitNetworkTables.ReadStopsTable(Offset: Integer);
 begin
-  var Reader := TTextTableReader.Create(FileName);
+  var Reader := TTextTableReader.Create(CtlFile.InpFileName('STOPS'));
   try
     // Set field indices
     var LineFieldIndex := Reader.IndexOf(LineFieldName,true);
@@ -298,9 +308,9 @@ begin
   end;
 end;
 
-Procedure TTransitNetworkTables.ReadSegmentsTable(const SpeedTimeDist: TSpeedTimeDist; const FileName: String);
+Procedure TTransitNetworkTables.ReadSegmentsTable(const SpeedTimeDist: TSpeedTimeDist);
 begin
-  var Reader := TTextTableReader.Create(FileName);
+  var Reader := TTextTableReader.Create(CtlFile.InpFileName('SEGMENTS'));
   try
     // Set field indices
     var LineFieldIndex := Reader.IndexOf(LineFieldName,true);
@@ -350,45 +360,53 @@ begin
   end;
 end;
 
-Procedure TTransitNetworkTables.SaveStopsTable(const FileName: String);
+Procedure TTransitNetworkTables.SaveBoardingsTable;
 begin
-  var Writer := TStreamWriter.Create(FileName);
-  try
-    // Write header
-    Writer.Write(LineFieldName);
-    Writer.Write(#9);
-    Writer.Write(StopFieldName);
-    Writer.Write(#9);
-    Writer.Write(UserClassFieldName);
-    Writer.Write(#9);
-    Writer.Write(BoardingsFieldName);
-    Writer.Write(#9);
-    Writer.Write(AlightingsFieldName);
-    Writer.WriteLine;
-    // Write data
-    for var Line := 0 to NLines-1 do FLines[Line].SaveStops(Writer);
-  finally
-    Writer.Free;
+  var BoardingsFileName := CtlFile.OutpFileName('BOARDS',true);
+  if BoardingsFileName <> '' then
+  begin
+    var Writer := TStreamWriter.Create(BoardingsFileName);
+    try
+      // Write header
+      Writer.Write(LineFieldName);
+      Writer.Write(#9);
+      Writer.Write(StopFieldName);
+      Writer.Write(#9);
+      Writer.Write(UserClassFieldName);
+      Writer.Write(#9);
+      Writer.Write(BoardingsFieldName);
+      Writer.Write(#9);
+      Writer.Write(AlightingsFieldName);
+      Writer.WriteLine;
+      // Write data
+      for var Line := 0 to NLines-1 do FLines[Line].SaveStops(Writer);
+    finally
+      Writer.Free;
+    end;
   end;
 end;
 
-Procedure TTransitNetworkTables.SaveSegmentsTable(const FileName: String);
+Procedure TTransitNetworkTables.SaveVolumesTable;
 begin
-  var Writer := TStreamWriter.Create(FileName);
-  try
-    // Write header
-    Writer.Write(LineFieldName);
-    Writer.Write(#9);
-    Writer.Write(SegmentFieldName);
-    Writer.Write(#9);
-    Writer.Write(UserClassFieldName);
-    Writer.Write(#9);
-    Writer.Write(VolumeFieldName);
-    Writer.WriteLine;
-    // Write data
-    for var Line := 0 to NLines-1 do FLines[Line].SaveSegments(Writer);
-  finally
-    Writer.Free;
+  var VolumesFileName := CtlFile.OutpFileName('VOLUMES',true);
+  if VolumesFileName <> '' then
+  begin
+    var Writer := TStreamWriter.Create(VolumesFileName);
+    try
+      // Write header
+      Writer.Write(LineFieldName);
+      Writer.Write(#9);
+      Writer.Write(SegmentFieldName);
+      Writer.Write(#9);
+      Writer.Write(UserClassFieldName);
+      Writer.Write(#9);
+      Writer.Write(VolumeFieldName);
+      Writer.WriteLine;
+      // Write data
+      for var Line := 0 to NLines-1 do FLines[Line].SaveSegments(Writer);
+    finally
+      Writer.Free;
+    end;
   end;
 end;
 
