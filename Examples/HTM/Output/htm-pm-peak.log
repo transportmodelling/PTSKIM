@@ -1,5 +1,5 @@
-START 10/23/2022 10:21:16 PM
-Executable: PTSKIM.exe; 10/23/2022 10:20:38 PM; 2212352 bytes
+START 10/24/2022 12:24:06 PM
+Executable: PTSKIM.exe; 10/24/2022 12:23:12 PM; 2212864 bytes
 Computer: PC04-SIG
 Ctl-file: F:\Repos\PTSKIM\Examples\htm\htm-pm-peak.ctl; 10/23/2022 5:41:25 PM; 319 bytes
 
@@ -11,6 +11,6 @@ STOPS: F:\...\Examples\htm\input\stops.dat; 10/23/2022 5:41:25 PM; 8567 bytes
 SEGMENTS: F:\...\Examples\htm\input\segments.dat; 10/23/2022 5:41:25 PM; 8556 bytes
 
 Output files:
-SKIM1: F:\...\Examples\htm\output\htm-pm-peak-skim.dat; 10/23/2022 10:21:22 PM; 8703465 bytes
+SKIM1: F:\...\Examples\htm\output\htm-pm-peak-skim.dat; 10/24/2022 12:24:12 PM; 8703465 bytes
 
-STOP 10/23/2022 10:21:22 PM
+STOP 10/24/2022 12:24:12 PM

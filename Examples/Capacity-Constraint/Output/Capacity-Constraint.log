@@ -1,5 +1,5 @@
-START 10/23/2022 10:21:04 PM
-Executable: PTSKIM.exe; 10/23/2022 10:20:38 PM; 2212352 bytes
+START 10/24/2022 12:23:54 PM
+Executable: PTSKIM.exe; 10/24/2022 12:23:12 PM; 2212864 bytes
 Computer: PC04-SIG
 Ctl-file: F:\Repos\PTSKIM\Examples\Capacity-Constraint\Capacity-Constraint.ctl; 10/23/2022 5:41:25 PM; 521 bytes
 
@@ -112,9 +112,9 @@ TRIPS1: F:\...\Examples\Capacity-Constraint\input\trips1.dat; 10/23/2022 5:41:25
 TRIPS2: F:\...\Examples\Capacity-Constraint\input\trips2.dat; 10/23/2022 5:41:25 PM; 34 bytes
 
 Output files:
-SKIM1: F:\...\Examples\Capacity-Constraint\output\Capacity-Constraint-skim1.dat; 10/23/2022 10:21:04 PM; 145 bytes
-SKIM2: F:\...\Examples\Capacity-Constraint\output\Capacity-Constraint-skim2.dat; 10/23/2022 10:21:04 PM; 145 bytes
-BOARDS: F:\...\Examples\Capacity-Constraint\output\boardings.dat; 10/23/2022 10:21:04 PM; 244 bytes
-VOLUMES: F:\...\Examples\Capacity-Constraint\output\volumes.dat; 10/23/2022 10:21:04 PM; 137 bytes
+SKIM1: F:\...\Examples\Capacity-Constraint\output\Capacity-Constraint-skim1.dat; 10/24/2022 12:23:54 PM; 145 bytes
+SKIM2: F:\...\Examples\Capacity-Constraint\output\Capacity-Constraint-skim2.dat; 10/24/2022 12:23:54 PM; 145 bytes
+BOARDS: F:\...\Examples\Capacity-Constraint\output\boardings.dat; 10/24/2022 12:23:54 PM; 244 bytes
+VOLUMES: F:\...\Examples\Capacity-Constraint\output\volumes.dat; 10/24/2022 12:23:54 PM; 137 bytes
 
-STOP 10/23/2022 10:21:04 PM
+STOP 10/24/2022 12:23:54 PM

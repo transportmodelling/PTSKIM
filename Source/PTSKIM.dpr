@@ -44,30 +44,177 @@ uses
 
 Type
   TPTSkim = Class
+  strict private
+    Crowding: Boolean;
+    NSkimVar,NSkim: Integer;
+    Coordinates: TCoordinates;
+    UserClasses: array of TUserClass;
+    SkimVariables: TArray<String>;
+    ImpedanceSkim: Integer;
+    SkimData: array {user class} of array {destination} of array {skim var} of TFloat64MatrixRow;
+    SkimVars: array of TSkimVar;
+    Procedure ReadCoordinates(Offset: Integer);
+    Procedure SetUserClasses;
+    Procedure SetSkimVariables;
+    Procedure WriteSkimData(UserClass: Integer);
   public
     Procedure Execute;
   end;
 
+Procedure TPTSkim.ReadCoordinates(Offset: Integer);
+begin
+  if CtlFile.Contains('ZONES') then
+  begin
+    if CtlFile.Contains('NODES') then
+    begin
+      Coordinates := TCoordinates.Create(CtlFile.InpFileName('ZONES'),CtlFile.InpFileName('NODES'),Offset);
+      NZones := Coordinates.ZoneCount;
+      NNodes := Coordinates.Count;
+    end else
+    begin
+      Coordinates := TCoordinates.Create(CtlFile.InpFileName('ZONES'));
+      NZones := Coordinates.ZoneCount;
+      NNodes := CtlFile.ToInt('NNODES');
+    end;
+  end else
+  begin
+    NZones := CtlFile.ToInt('NZONES',0);
+    if CtlFile.Contains('NODES') then
+    begin
+      Coordinates := TCoordinates.Create(CtlFile.InpFileName('NODES'),NZones,Offset);
+      NNodes := Coordinates.Count;
+    end else
+      NNodes := CtlFile.ToInt('NNODES');
+  end;
+end;
+
+Procedure TPTSkim.SetUserClasses;
+begin
+  Crowding := false;
+  NUserClasses := CtlFile.ToInt('NCLASS');
+  SetLength(UserClasses,NUserClasses);
+  // Read user class parameters
+  var VOT := CtlFile.Parse('VOT',Comma).ToFloatArray;
+  var BoardingPenalty := CtlFile.Parse('PENALTY',Comma).ToFloatArray;
+  var CrowdingModel := CtlFile.Parse('CROWD',Comma).ToIntArray;
+  for var UserClass := 0 to NUserClasses-1 do
+  begin
+    UserClasses[UserClass].UserClass := UserClass;
+    if Length(BoardingPenalty) = 0 then
+      UserClasses[UserClass].BoardingPenalty := 0.0
+    else
+      UserClasses[UserClass].BoardingPenalty := BoardingPenalty[UserClass];
+    if Length(VOT) = 0 then
+      UserClasses[UserClass].ValueOfTime := 0.0
+    else
+      UserClasses[UserClass].ValueOfTime := VOT[UserClass];
+    if Length(CrowdingModel) = 0 then
+      UserClasses[UserClass].CrowdingModel := nil
+    else
+      case CrowdingModel[UserClass] of
+        0: UserClasses[UserClass].CrowdingModel := nil;
+        1: begin
+             Crowding := true;
+             UserClasses[UserClass].CrowdingModel := TWardmanWhelanCrowdingModel.Create(ppCommuting);
+           end;
+        2: begin
+             Crowding := true;
+             UserClasses[UserClass].CrowdingModel := TWardmanWhelanCrowdingModel.Create(ppOther);
+           end
+        else raise Exception.Create('Invalid crowding model');
+      end
+  end;
+end;
+
+Procedure TPTSkim.SetSkimVariables;
+Var
+  SkimVar: String;
+begin
+  ImpedanceSkim := -1;
+  if CtlFile.Contains('SKIM',SkimVar) then
+  begin
+    SkimVariables := TStringParser.Create(Comma,SkimVar).ToStrArray;
+    if Length(SkimVariables) > 0 then
+    begin
+      for var Skim := low(SkimVariables) to high(SkimVariables) do
+      if SameText(SkimVariables[Skim],'IMP') then
+      begin
+        ImpedanceSkim := Skim;
+        SkimVars := SkimVars + [TImpedanceSkim.Create];
+      end else
+      if SameText(SkimVariables[Skim],'IWAIT') then SkimVars := SkimVars + [TInitialWaitTimeSkim.Create] else
+      if SameText(SkimVariables[Skim],'WAIT') then SkimVars := SkimVars + [TWaitTimeSkim.Create] else
+      if SameText(SkimVariables[Skim],'BRD') then SkimVars := SkimVars + [TBoardingsSkim.Create] else
+      if SameText(SkimVariables[Skim],'TIM') then SkimVars := SkimVars + [TTimeSkim.Create] else
+      if SameText(SkimVariables[Skim],'IVT') then SkimVars := SkimVars + [TInVehicleTimeSkim.Create] else
+      if SameText(SkimVariables[Skim],'DST') then SkimVars := SkimVars + [TDistanceSkim.Create] else
+      if SameText(SkimVariables[Skim],'IVD') then SkimVars := SkimVars + [TInvehicleDistanceSkim.Create] else
+      if SameText(SkimVariables[Skim],'CST') then SkimVars := SkimVars + [TCostSkim.Create] else
+        raise Exception.Create('Unknown skim variable ' + SkimVariables[Skim]);
+    end;
+  end;
+end;
+
+Procedure TPTSkim.WriteSkimData(UserClass: Integer);
+Var
+  SkimRows: array of TFloat64MatrixRow;
+  SkimWriter: TMatrixWriter;
+begin
+  SkimRows := nil;
+  SkimWriter := nil;
+  var SkimLabel := 'SKIM'+(UserClass+1).ToString;
+  try
+    var UserClassSkimData := SkimData[UserClass];
+    if CtlFile.ToBool('TRNSP','0','1',false) then
+    begin
+      SetLength(SkimVariables,2*NSkimVar);
+      SetLength(SkimRows,2*NSkimVar);
+      for var Skim := 0 to NSkimVar-1 do
+      begin
+        SkimVariables[Skim+NSkimVar] := SkimVariables[Skim] + '_tr';
+        SkimRows[Skim].Length := NSkim;
+      end;
+      SkimWriter := MatrixFormats.CreateWriter(CtlFile.OutpProperties(SkimLabel),SkimLabel,SkimVariables,NSkim);
+      for var Origin := 0 to NSkim-1 do
+      begin
+        for var Skim := 0 to NSkimVar-1 do
+        begin
+          SkimRows[NSkimVar+Skim] := UserClassSkimData[Origin][Skim];
+          for var Destination := 0 to NSkim-1 do
+          SkimRows[Skim,Destination] := UserClassSkimData[Destination][Skim,Origin];
+        end;
+        SkimWriter.Write(SkimRows);
+      end;
+    end else
+    begin
+      SetLength(SkimRows,NSkimVar,NSkim);
+      SkimWriter := MatrixFormats.CreateWriter(CtlFile.OutpProperties(SkimLabel),SkimLabel,SkimVariables,NSkim);
+      for var Origin := 0 to NSkim-1 do
+      begin
+        for var Skim := 0 to NSkimVar-1 do
+        for var Destination := 0 to NSkim-1 do
+        SkimRows[Skim,Destination] := UserClassSkimData[Destination][Skim,Origin];
+        SkimWriter.Write(SkimRows);
+      end;
+    end;
+  finally
+    SkimWriter.Free;
+    Finalize(SkimData[UserClass]);
+  end;
+end;
+
 Procedure TPTSkim.Execute;
 Var
   SpeedTimeDist: TSpeedTimeDist;
-  UserClasses: array of TUserClass;
-  Coordinates: TCoordinates;
   NonTransitNetwork: TNonTransitNetwork;
   TransitNetwork: TTransitNetworkTables;
   Network: TNetwork;
   PathBuilders: array of TPathBuilder;
   DestinationsLoop: TParallelFor;
-  SkimVar: String;
-  NThreads,NSkim: Integer;
-  SkimVariables: TArray<String>;
-  SkimVars: array of TSkimVar;
+  NThreads: Integer;
   Volumes: array of TFloat32MatrixRow;
   RoutesCount,ImpedanceCount: array {destination} of TArray<Byte>;
-  SkimData: array {user class} of array {destination} of array {skim var} of TFloat64MatrixRow;
   VolumesReader: TMatrixReader;
-  SkimRows: array of TFloat64MatrixRow;
-  SkimWriter: TMatrixWriter;
 begin
   if ParamCount > 0 then
   begin
@@ -90,91 +237,13 @@ begin
           TTextMatrixWriter.ColumnLabel := 'Dest';
           // Set parameters
           var Offset := CtlFile.ToInt('OFFSET',0);
-          if CtlFile.Contains('ZONES') then
-          begin
-            if CtlFile.Contains('NODES') then
-            begin
-              Coordinates := TCoordinates.Create(CtlFile.InpFileName('ZONES'),CtlFile.InpFileName('NODES'),Offset);
-              NZones := Coordinates.ZoneCount;
-              NNodes := Coordinates.Count;
-            end else
-            begin
-              Coordinates := TCoordinates.Create(CtlFile.InpFileName('ZONES'));
-              NZones := Coordinates.ZoneCount;
-              NNodes := CtlFile.ToInt('NNODES');
-            end;
-          end else
-          begin
-            NZones := CtlFile.ToInt('NZONES',0);
-            if CtlFile.Contains('NODES') then
-            begin
-              Coordinates := TCoordinates.Create(CtlFile.InpFileName('NODES'),NZones,Offset);
-              NNodes := Coordinates.Count;
-            end else
-              NNodes := CtlFile.ToInt('NNODES');
-          end;
-          NUserClasses := CtlFile.ToInt('NCLASS');
+          ReadCoordinates(Offset);
           if (NZones >= 0) and (NNodes > NZones) then
           begin
-            // Set userclasses
-            SetLength(UserClasses,NUserClasses);
-            var Crowding := false;
-            var VOT := CtlFile.Parse('VOT',Comma).ToFloatArray;
-            var BoardingPenalty := CtlFile.Parse('PENALTY',Comma).ToFloatArray;
-            var CrowdingModel := CtlFile.Parse('CROWD',Comma).ToIntArray;
-            for var UserClass := 0 to NUserClasses-1 do
-            begin
-              UserClasses[UserClass].UserClass := UserClass;
-              if Length(BoardingPenalty) = 0 then
-                UserClasses[UserClass].BoardingPenalty := 0.0
-              else
-                UserClasses[UserClass].BoardingPenalty := BoardingPenalty[UserClass];
-              if Length(VOT) = 0 then
-                UserClasses[UserClass].ValueOfTime := 0.0
-              else
-                UserClasses[UserClass].ValueOfTime := VOT[UserClass];
-              if Length(CrowdingModel) = 0 then
-                UserClasses[UserClass].CrowdingModel := nil
-              else
-                case CrowdingModel[UserClass] of
-                  0: UserClasses[UserClass].CrowdingModel := nil;
-                  1: begin
-                       Crowding := true;
-                       UserClasses[UserClass].CrowdingModel := TWardmanWhelanCrowdingModel.Create(ppCommuting);
-                     end;
-                  2: begin
-                       Crowding := true;
-                       UserClasses[UserClass].CrowdingModel := TWardmanWhelanCrowdingModel.Create(ppOther);
-                     end
-                  else raise Exception.Create('Invalid crowding model');
-                end
-            end;
-            // Set skim-variables
-            var ImpedanceSkim := -1;
-            if CtlFile.Contains('SKIM',SkimVar) then
-            begin
-              SkimVariables := TStringParser.Create(Comma,SkimVar).ToStrArray;
-              if Length(SkimVariables) > 0 then
-              begin
-                for var Skim := low(SkimVariables) to high(SkimVariables) do
-                if SameText(SkimVariables[Skim],'IMP') then
-                begin
-                  ImpedanceSkim := Skim;
-                  SkimVars := SkimVars + [TImpedanceSkim.Create];
-                end else
-                if SameText(SkimVariables[Skim],'IWAIT') then SkimVars := SkimVars + [TInitialWaitTimeSkim.Create] else
-                if SameText(SkimVariables[Skim],'WAIT') then SkimVars := SkimVars + [TWaitTimeSkim.Create] else
-                if SameText(SkimVariables[Skim],'BRD') then SkimVars := SkimVars + [TBoardingsSkim.Create] else
-                if SameText(SkimVariables[Skim],'TIM') then SkimVars := SkimVars + [TTimeSkim.Create] else
-                if SameText(SkimVariables[Skim],'IVT') then SkimVars := SkimVars + [TInVehicleTimeSkim.Create] else
-                if SameText(SkimVariables[Skim],'DST') then SkimVars := SkimVars + [TDistanceSkim.Create] else
-                if SameText(SkimVariables[Skim],'IVD') then SkimVars := SkimVars + [TInvehicleDistanceSkim.Create] else
-                if SameText(SkimVariables[Skim],'CST') then SkimVars := SkimVars + [TCostSkim.Create] else
-                  raise Exception.Create('Unknown skim variable ' + SkimVariables[Skim]);
-              end;
-            end;
+            SetUserClasses;
+            SetSkimVariables;
             // Set skim range
-            var NSkimVar := Length(SkimVars);
+            NSkimVar := Length(SkimVars);
             if NSkimVar > 0 then
             begin
               SetLength(SkimData,NUserClasses);
@@ -191,7 +260,6 @@ begin
               NonTransitNetwork.Initialize(Coordinates,
                                            CtlFile.ToFloat('DETOUR',1.0),
                                            CtlFile.ToFloat('SPEED'));
-            // Set speed-time-distance input mode
             // Create network
             TransitNetwork := TTransitNetworkTables.Create(Offset);
             Network := TNetwork.Create(TransitNetwork,NonTransitNetwork);
@@ -314,49 +382,7 @@ begin
                   Network.MixVolumes(UserClass,MixFactor);
                 end;
                 // Write skim data
-                if (NSkimVar > 0) and ((Iter = MaxIter) or (Convergence <= Converged)) then
-                begin
-                  SkimRows := nil;
-                  SkimWriter := nil;
-                  var SkimLabel := 'SKIM'+(UserClass+1).ToString;
-                  try
-                    if CtlFile.ToBool('TRNSP','0','1',false) then
-                    begin
-                      SetLength(SkimVariables,2*NSkimVar);
-                      SetLength(SkimRows,2*NSkimVar);
-                      for var Skim := 0 to NSkimVar-1 do
-                      begin
-                        SkimVariables[Skim+NSkimVar] := SkimVariables[Skim] + '_tr';
-                        SkimRows[Skim].Length := NSkim;
-                      end;
-                      SkimWriter := MatrixFormats.CreateWriter(CtlFile.OutpProperties(SkimLabel),SkimLabel,SkimVariables,NSkim);
-                      for var Origin := 0 to NSkim-1 do
-                      begin
-                        for var Skim := 0 to NSkimVar-1 do
-                        begin
-                          SkimRows[NSkimVar+Skim] := UserClassSkimData[Origin][Skim];
-                          for var Destination := 0 to NSkim-1 do
-                          SkimRows[Skim,Destination] := UserClassSkimData[Destination][Skim,Origin];
-                        end;
-                        SkimWriter.Write(SkimRows);
-                      end;
-                    end else
-                    begin
-                      SetLength(SkimRows,NSkimVar,NSkim);
-                      SkimWriter := MatrixFormats.CreateWriter(CtlFile.OutpProperties(SkimLabel),SkimLabel,SkimVariables,NSkim);
-                      for var Origin := 0 to NSkim-1 do
-                      begin
-                        for var Skim := 0 to NSkimVar-1 do
-                        for var Destination := 0 to NSkim-1 do
-                        SkimRows[Skim,Destination] := UserClassSkimData[Destination][Skim,Origin];
-                        SkimWriter.Write(SkimRows);
-                      end;
-                    end;
-                  finally
-                    SkimWriter.Free;
-                    Finalize(SkimData[UserClass]);
-                  end;
-                end;
+                if (NSkimVar > 0) and ((Iter = MaxIter) or (Convergence <= Converged)) then WriteSkimData(UserClass);
               end;
               // Load transit lines
               TransitNetwork.ResetVolumes;

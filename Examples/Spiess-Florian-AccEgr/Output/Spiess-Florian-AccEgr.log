@@ -1,5 +1,5 @@
-START 10/23/2022 10:21:04 PM
-Executable: PTSKIM.exe; 10/23/2022 10:20:38 PM; 2212352 bytes
+START 10/24/2022 12:23:53 PM
+Executable: PTSKIM.exe; 10/24/2022 12:23:12 PM; 2212864 bytes
 Computer: PC04-SIG
 Ctl-file: F:\Repos\PTSKIM\Examples\Spiess-Florian-AccEgr\Spiess-Florian-AccEgr.ctl; 10/23/2022 5:41:25 PM; 465 bytes
 
@@ -12,8 +12,8 @@ SEGMENTS: F:\...\Examples\Spiess-Florian-AccEgr\input\segments.dat; 10/23/2022 5
 TRIPS1: F:\...\Examples\Spiess-Florian-AccEgr\input\trips.dat; 10/23/2022 5:41:25 PM; 26 bytes
 
 Output files:
-SKIM1: F:\...\Examples\Spiess-Florian-AccEgr\output\Spiess-Florian-AccEgr-skim.dat; 10/23/2022 10:21:04 PM; 72 bytes
-BOARDS: F:\...\Examples\Spiess-Florian-AccEgr\output\boardings.dat; 10/23/2022 10:21:04 PM; 154 bytes
-VOLUMES: F:\...\Examples\Spiess-Florian-AccEgr\output\volumes.dat; 10/23/2022 10:21:04 PM; 96 bytes
+SKIM1: F:\...\Examples\Spiess-Florian-AccEgr\output\Spiess-Florian-AccEgr-skim.dat; 10/24/2022 12:23:53 PM; 72 bytes
+BOARDS: F:\...\Examples\Spiess-Florian-AccEgr\output\boardings.dat; 10/24/2022 12:23:53 PM; 154 bytes
+VOLUMES: F:\...\Examples\Spiess-Florian-AccEgr\output\volumes.dat; 10/24/2022 12:23:53 PM; 96 bytes
 
-STOP 10/23/2022 10:21:04 PM
+STOP 10/24/2022 12:23:53 PM
